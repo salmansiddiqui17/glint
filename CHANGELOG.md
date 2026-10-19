@@ -6,6 +6,8 @@ All notable changes to Glint are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-10-19
+
 ### Fixed
 - **Grant Access…** no longer opens System Settings at the same moment as the macOS permission prompt. The Screen Recording row now has separate **Grant Access…**, **Open Settings…** and **Relaunch** buttons, with a hint for a stale permission entry after an update.
 
@@ -33,5 +35,6 @@ The first public version: capture and the annotation editor.
 ### Privacy
 - Sandboxed, with no network entitlement. Nothing leaves your Mac.
 
-[Unreleased]: https://github.com/salmansiddiqui17/glint/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/salmansiddiqui17/glint/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/salmansiddiqui17/glint/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/salmansiddiqui17/glint/releases/tag/v0.1.0
