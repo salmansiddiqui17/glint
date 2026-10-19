@@ -6,6 +6,9 @@ All notable changes to Glint are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+- **Grant Access…** no longer opens System Settings at the same moment as the macOS permission prompt. The Screen Recording row now has separate **Grant Access…**, **Open Settings…** and **Relaunch** buttons, with a hint for a stale permission entry after an update.
+
 ## [0.1.0] - 2026-10-19
 
 The first public version: capture and the annotation editor.

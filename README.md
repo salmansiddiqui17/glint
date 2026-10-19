@@ -62,8 +62,13 @@ A native Swift menu-bar app for Apple silicon, inspired by Lightshot's quick cap
 4. Grant **Screen Recording** when asked (**System Settings › Privacy & Security › Screen & System Audio Recording**).
 
 > [!NOTE]
-> Releases are currently ad-hoc signed, so macOS treats each update as a new app. After updating,
-> you may need to switch Glint's Screen Recording permission off and on again.
+> Releases are currently ad-hoc signed, so macOS treats each update as a new app. If, after an
+> update, Glint says Screen Recording is not granted even though it's switched on in System Settings,
+> reset its entry and allow it again:
+> ```bash
+> tccutil reset ScreenCapture com.salmanfurqan.glint
+> ```
+> Then reopen Glint and click **Grant Access…** (or press ⇧⌘9).
 
 To check a download, compare its checksum with `SHA256SUMS.txt` on the release page:
 

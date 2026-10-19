@@ -9,18 +9,17 @@ import CoreGraphics
 enum ScreenRecordingPermission {
     static var isGranted: Bool { CGPreflightScreenCaptureAccess() }
 
-    /// First call: shows the system prompt. Later calls (macOS no longer prompts once the user has
-    /// decided): request again, which is silent then but re-lists Glint in System Settings after a
-    /// `tccutil reset`, and open the Screen Recording pane.
+    /// Asks macOS for access. It shows the system prompt while the user hasn't decided, which
+    /// includes after the permission was reset or the app's signature changed, and is silent
+    /// otherwise. Either way it lists Glint in System Settings.
     ///
-    /// `CGRequestScreenCaptureAccess()` returns false while its prompt is still pending, so its
-    /// result can't tell "prompted now" from "already declined"; a stored flag does. Accepted
-    /// trade-off: after a `tccutil reset`, a later click may show the prompt and Settings together.
+    /// It never opens System Settings itself. `CGRequestScreenCaptureAccess()` returns false
+    /// both while its prompt is showing and when access was already declined, so Glint can't
+    /// tell whether a prompt appeared, and opening Settings as well could show both at once.
+    /// The Screen Recording row offers a separate "Open Settings…" button instead.
     static func request(defaults: UserDefaults = .standard) {
-        let alreadyAsked = defaults.bool(forKey: SettingsKey.hasRequestedScreenRecording)
         defaults.set(true, forKey: SettingsKey.hasRequestedScreenRecording)
-        if CGRequestScreenCaptureAccess() { return }
-        if alreadyAsked { openSystemSettings() }
+        _ = CGRequestScreenCaptureAccess()
     }
 
     static func openSystemSettings() {
