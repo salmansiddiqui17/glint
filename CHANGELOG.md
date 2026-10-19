@@ -6,6 +6,8 @@ All notable changes to Glint are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-10-19
+
 The first public version: capture and the annotation editor.
 
 ### Capture
@@ -27,3 +29,6 @@ The first public version: capture and the annotation editor.
 
 ### Privacy
 - Sandboxed, with no network entitlement. Nothing leaves your Mac.
+
+[Unreleased]: https://github.com/salmansiddiqui17/glint/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/salmansiddiqui17/glint/releases/tag/v0.1.0
