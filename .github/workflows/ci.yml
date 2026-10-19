@@ -1,0 +1,51 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-test:
+    name: Build and test
+    # Xcode 27 is required: the build relies on SwiftPM's Swift Build backend.
+    runs-on: xcode-27
+    timeout-minutes: 30
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_27.0.app/Contents/Developer
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Show toolchain
+        run: |
+          sw_vers
+          xcodebuild -version
+          swift --version
+
+      - name: Run unit tests
+        run: swift test
+
+      - name: Build Glint.app (release, ad-hoc signed)
+        env:
+          GLINT_SIGN_IDENTITY: "-"
+          GLINT_VERSION: 0.0.0-ci.${{ github.run_number }}
+          GLINT_BUILD: ${{ github.run_number }}
+        run: scripts/build-app.sh release
+
+      - name: Package
+        run: scripts/package-release.sh "0.0.0-ci.${{ github.run_number }}"
+
+      - name: Upload build
+        uses: actions/upload-artifact@v4
+        with:
+          name: Glint-ci-${{ github.run_number }}
+          path: dist/
+          retention-days: 14
