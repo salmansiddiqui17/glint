@@ -23,6 +23,7 @@ let package = Package(
         ),
         // Tiny entry point that starts NSApplication.
         .executableTarget(name: "Glint", dependencies: ["GlintApp"]),
-        .testTarget(name: "GlintCoreTests", dependencies: ["GlintCore"]),
+        // Goldens/ holds the renderer's golden images (NFR-17), read from the source tree.
+        .testTarget(name: "GlintCoreTests", dependencies: ["GlintCore"], exclude: ["Goldens"]),
     ]
 )
