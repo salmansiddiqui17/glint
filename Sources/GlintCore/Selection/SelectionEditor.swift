@@ -1,6 +1,7 @@
 import CoreGraphics
 
-/// Selection editing on one display: create, move, resize, nudge and the full-display toggle.
+/// Selection editing on one display: create, move, resize, nudge, the full-display toggle and
+/// window snapping.
 ///
 /// Pure state machine with no AppKit. All points are display-local points with a top-left origin
 /// (y grows downward); `bounds` is the whole display, `CGRect(origin: .zero, size: displaySize)`.
@@ -11,8 +12,13 @@ public struct SelectionEditor: Equatable, Sendable {
 
     public let bounds: CGRect
     public private(set) var selection: CGRect?
+    /// What a click selects (FR-19); nil turns snapping off, so a click does nothing.
+    public let snapTargets: SnapTargets?
     private var gesture: Gesture = .idle
     private var fullDisplayToggle: FullDisplayToggle = .inactive
+    /// Set when the last click snapped, so a double-click on a window selects it rather than
+    /// toggling the full display at once.
+    private var lastClickSnapped = false
 
     private enum Gesture: Equatable, Sendable {
         case idle
@@ -27,8 +33,9 @@ public struct SelectionEditor: Equatable, Sendable {
         case active(previous: CGRect?)
     }
 
-    public init(bounds: CGRect) {
+    public init(bounds: CGRect, snapTargets: SnapTargets? = nil) {
         self.bounds = bounds
+        self.snapTargets = snapTargets
     }
 
     /// True while a press-and-drag gesture is changing the selection: from mouse-down on the
@@ -62,11 +69,13 @@ public struct SelectionEditor: Equatable, Sendable {
 
     public mutating func mouseDown(at rawPoint: CGPoint, clickCount: Int) {
         let point = clamp(rawPoint)
+        let afterSnap = lastClickSnapped
+        lastClickSnapped = false
         guard let current = selection else {
             gesture = .pending(start: point)
             return
         }
-        if clickCount >= 2, current.contains(point) {
+        if clickCount >= 2, current.contains(point), !afterSnap {
             // Checked before handles so a double-click toggles even on a tiny selection (FR-23).
             gesture = .idle
             toggleFullDisplay()
@@ -105,10 +114,12 @@ public struct SelectionEditor: Equatable, Sendable {
         return false
     }
 
-    /// Ends the gesture at `rawPoint`. Returns `true` when the release itself created a new selection
-    /// (a fast flick with no intermediate drag events), so the caller can clear other displays (FR-18).
+    /// Ends the gesture at `rawPoint`. Returns `true` when the release itself made a new selection,
+    /// so the caller can clear other displays (FR-18): a fast flick with no intermediate drag
+    /// events, or a click that snapped to a window or the whole display (FR-19).
+    /// - Parameter snapping: false makes a click do nothing, as while a drawing tool is active (OQ-12).
     @discardableResult
-    public mutating func mouseUp(at rawPoint: CGPoint) -> Bool {
+    public mutating func mouseUp(at rawPoint: CGPoint, snapping: Bool = true) -> Bool {
         var beganNewSelection = mouseDragged(to: rawPoint)
         switch gesture {
         case .creating:
@@ -118,11 +129,25 @@ public struct SelectionEditor: Equatable, Sendable {
             }
         case let .resizing(_, _, original):
             if let rect = selection, rect.width < 1 || rect.height < 1 { selection = original }
-        case .idle, .pending, .moving:
+        case let .pending(start):
+            // Released within the drag threshold: a click, outside any selection.
+            if snapping, let snapTargets {
+                select(snapTargets.target(at: start))
+                lastClickSnapped = true
+                beganNewSelection = selection != nil
+            }
+        case .idle, .moving:
             break
         }
         gesture = .idle
         return beganNewSelection
+    }
+
+    /// The frame to highlight under the pointer (FR-19): what a click at `point` would select.
+    /// Only while there is no selection and no drag; nil when snapping is off.
+    public func snapHighlight(at point: CGPoint) -> CGRect? {
+        guard selection == nil, !isDragging else { return nil }
+        return snapTargets?.target(at: clamp(point))
     }
 
     // MARK: Keyboard and commands (ignored mid-drag: the drag would overwrite them)
@@ -156,9 +181,10 @@ public struct SelectionEditor: Equatable, Sendable {
         selection = nil
         gesture = .idle
         fullDisplayToggle = .inactive
+        lastClickSnapped = false
     }
 
-    /// Replaces the selection with `rect` clipped to the display (window snapping in P3).
+    /// Replaces the selection with `rect` clipped to the display (window snapping, FR-19).
     /// A rect that is off this display, or clips to less than 1 × 1 pt, clears the selection.
     public mutating func select(_ rect: CGRect) {
         let clipped = rect.standardized.intersection(bounds)

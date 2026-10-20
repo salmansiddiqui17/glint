@@ -252,3 +252,110 @@ struct SelectionEditorTests {
         #expect(e.selection == nil)
     }
 }
+
+struct SelectionEditorSnappingTests {
+    let display = CGRect(x: 0, y: 0, width: 1000, height: 800)
+    let window = CGRect(x: 100, y: 100, width: 400, height: 300)
+
+    func editor() -> SelectionEditor {
+        SelectionEditor(bounds: display, snapTargets: SnapTargets(windows: [window], display: display))
+    }
+
+    func click(_ editor: inout SelectionEditor, at point: CGPoint, count: Int = 1) -> Bool {
+        editor.mouseDown(at: point, clickCount: count)
+        return editor.mouseUp(at: point)
+    }
+
+    @Test func clickOnAWindowSelectsItsFrame() {
+        var e = editor()
+        let snapped = click(&e, at: CGPoint(x: 200, y: 200))
+        #expect(snapped)
+        #expect(e.selection == window)
+    }
+
+    @Test func clickOnTheDesktopSelectsTheWholeDisplay() {
+        var e = editor()
+        let snapped = click(&e, at: CGPoint(x: 900, y: 700))
+        #expect(snapped)
+        #expect(e.selection == display)
+    }
+
+    @Test func clickWithinTheDragThresholdStillSnaps() {
+        var e = editor()
+        e.mouseDown(at: CGPoint(x: 200, y: 200), clickCount: 1)
+        e.mouseDragged(to: CGPoint(x: 202, y: 202))
+        let snapped = e.mouseUp(at: CGPoint(x: 202, y: 202))
+        #expect(snapped)
+        #expect(e.selection == window)
+    }
+
+    @Test func dragIgnoresSnappingAndMakesAManualSelection() {
+        var e = editor()
+        e.mouseDown(at: CGPoint(x: 200, y: 200), clickCount: 1)
+        e.mouseDragged(to: CGPoint(x: 260, y: 240))
+        e.mouseUp(at: CGPoint(x: 260, y: 240))
+        #expect(e.selection == CGRect(x: 200, y: 200, width: 60, height: 40))
+    }
+
+    @Test func clickOutsideTheSelectionSnapsAndReplacesIt() {
+        var e = editor()
+        e.select(CGRect(x: 600, y: 500, width: 100, height: 100))
+        let snapped = click(&e, at: CGPoint(x: 200, y: 200))
+        #expect(snapped)
+        #expect(e.selection == window)
+    }
+
+    @Test func clickInsideTheSelectionKeepsIt() {
+        var e = editor()
+        let manual = CGRect(x: 600, y: 500, width: 100, height: 100)
+        e.select(manual)
+        let snapped = click(&e, at: CGPoint(x: 650, y: 550))
+        #expect(snapped == false)
+        #expect(e.selection == manual)
+    }
+
+    @Test func doubleClickOnAWindowSelectsItWithoutTogglingFullDisplay() {
+        var e = editor()
+        let first = click(&e, at: CGPoint(x: 200, y: 200))
+        let second = click(&e, at: CGPoint(x: 200, y: 200), count: 2)
+        #expect(first)
+        #expect(second == false)
+        #expect(e.selection == window)
+        // A later double-click inside still toggles (FR-23).
+        _ = click(&e, at: CGPoint(x: 200, y: 200), count: 2)
+        #expect(e.selection == display)
+    }
+
+    @Test func aClickWithSnappingOffDoesNothing() {
+        var e = editor()
+        e.mouseDown(at: CGPoint(x: 200, y: 200), clickCount: 1)
+        let snapped = e.mouseUp(at: CGPoint(x: 200, y: 200), snapping: false)
+        #expect(snapped == false)
+        #expect(e.selection == nil)
+        // A drag still makes a selection.
+        e.mouseDown(at: CGPoint(x: 200, y: 200), clickCount: 1)
+        e.mouseUp(at: CGPoint(x: 260, y: 240), snapping: false)
+        #expect(e.selection == CGRect(x: 200, y: 200, width: 60, height: 40))
+    }
+
+    @Test func withoutSnapTargetsAClickDoesNothing() {
+        var e = SelectionEditor(bounds: display)
+        let snapped = click(&e, at: CGPoint(x: 200, y: 200))
+        #expect(snapped == false)
+        #expect(e.selection == nil)
+        #expect(e.snapHighlight(at: CGPoint(x: 200, y: 200)) == nil)
+    }
+
+    @Test func highlightFollowsThePointerOnlyWithoutASelection() {
+        var e = editor()
+        #expect(e.snapHighlight(at: CGPoint(x: 200, y: 200)) == window)
+        #expect(e.snapHighlight(at: CGPoint(x: 900, y: 700)) == display)
+        #expect(e.snapHighlight(at: CGPoint(x: 5000, y: 5000)) == display)   // clamped onto the display
+        e.mouseDown(at: CGPoint(x: 200, y: 200), clickCount: 1)
+        #expect(e.snapHighlight(at: CGPoint(x: 200, y: 200)) == window)    // pressed, not yet a drag
+        e.mouseDragged(to: CGPoint(x: 300, y: 300))
+        #expect(e.snapHighlight(at: CGPoint(x: 300, y: 300)) == nil)       // drawing a selection
+        e.mouseUp(at: CGPoint(x: 300, y: 300))
+        #expect(e.snapHighlight(at: CGPoint(x: 900, y: 700)) == nil)       // a selection exists
+    }
+}
