@@ -20,5 +20,14 @@ find Sources/GlintApp Sources/GlintCore -name '*.swift' -print0 \
 if [[ ! -f "$CATALOG" ]]; then
   printf '{\n  "sourceLanguage" : "en",\n  "strings" : {\n\n  },\n  "version" : "1.0"\n}\n' > "$CATALOG"
 fi
-# Strings no longer in the source are removed rather than kept as stale.
+# Untranslated strings no longer in the source are removed; translated ones are kept and marked
+# stale for review.
 xcrun xcstringstool sync "$CATALOG" --stringsdata "$OUT"/*.stringsdata
+
+# xcstringstool writes an interpolation as %arg, a key the app never looks up, so its translation
+# would silently never show.
+if grep -q '%arg' "$CATALOG"; then
+  echo "error: $CATALOG has a %arg key. Write interpolated text with an explicit format key," >&2
+  echo "       e.g. String(format: String(localized: \"%lld by %lld\"), w, h). See CONTRIBUTING.md." >&2
+  exit 1
+fi

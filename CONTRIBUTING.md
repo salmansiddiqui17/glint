@@ -52,6 +52,9 @@ the comment around each one explains the behaviour it refers to.
 - Write user-visible text as `String(localized:)` in AppKit code, or as a SwiftUI string literal.
   Then run `scripts/sync-strings.sh` and commit `Resources/Localizable.xcstrings`, the String Catalog
   that translations will go into. CI fails when the catalog is out of date.
+  Put values into text through an explicit format key, as in
+  `String(format: String(localized: "%lld by %lld"), width, height)`: an interpolated string gets a
+  catalog key the app never looks up, and the sync script rejects it.
 - Use [Conventional Commits](https://www.conventionalcommits.org/) for commit messages
   (`feat(core): …`, `fix(app): …`, `docs: …`).
 - For user-visible changes, add a line to the `Unreleased` section of [CHANGELOG.md](CHANGELOG.md).
