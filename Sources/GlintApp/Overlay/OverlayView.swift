@@ -270,26 +270,28 @@ final class OverlayView: NSView {
     /// Has VoiceOver speak the selection's size, e.g. "600 by 400", once it has stayed the same
     /// for 0.5 s: after a drag ends, ⌘A, a snap click, or when a run of arrow-key nudges stops.
     private func scheduleSizeAnnouncement() {
-        guard let selection = editor.selection, !editor.isDragging else {
-            if editor.selection == nil {
-                announcedSize = nil
-                setAccessibilityValue(nil)
-            }
+        guard let selection = editor.selection else {
+            announcedSize = nil
+            setAccessibilityValue(nil)
             cancelAnnouncement()
             return
         }
         let size = outputSize(of: selection)
         // A plain format key, so the String Catalog's key matches it (NFR-15).
         let text = String(format: String(localized: "%lld by %lld"), size.width, size.height)
-        setAccessibilityValue(text)
+        setAccessibilityValue(text)   // kept current mid-drag too, for VO-F3
+        guard !editor.isDragging else {
+            cancelAnnouncement()
+            return
+        }
         guard size != pendingSize else { return }   // already waiting to say this size
-        // A size that changed and changed back says nothing.
         cancelAnnouncement()
+        // A size that changed and changed back says nothing.
         guard size != announcedSize, NSWorkspace.shared.isVoiceOverEnabled else { return }
         pendingSize = size
         announcement = Task { [weak self] in
             try? await Task.sleep(for: Self.announcementDelay)
-            guard !Task.isCancelled, let self else { return }
+            guard !Task.isCancelled, let self, window?.isVisible == true else { return }   // not after the capture ends
             announcedSize = size
             pendingSize = nil
             NSAccessibility.post(element: self, notification: .announcementRequested,

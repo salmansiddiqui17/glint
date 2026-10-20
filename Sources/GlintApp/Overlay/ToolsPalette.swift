@@ -103,8 +103,6 @@ final class ToolsPalette: NSVisualEffectView {
             case .color:
                 if color != shownColor {
                     button.image = Self.swatch(color)
-                    // VoiceOver reads the colour as the button's value, e.g. "Colour, red" (NFR-12).
-                    button.setAccessibilityValue(NSColor(cgColor: color.cgColor)?.accessibilityName)
                 }
             case .undo:
                 button.isEnabled = canUndo  // the system dims a disabled button
@@ -155,7 +153,13 @@ final class ToolsPalette: NSVisualEffectView {
             circle.stroke()
             return true
         }
-        image.accessibilityDescription = String(localized: "Colour")
+        // VoiceOver reads a toolbar button through its cell, which takes the image's description
+        // but not the button's accessibility value: "Colour, dark red" (NFR-12).
+        if let name = NSColor(cgColor: color.cgColor)?.accessibilityName {
+            image.accessibilityDescription = String(format: String(localized: "Colour, %@"), name)
+        } else {
+            image.accessibilityDescription = String(localized: "Colour")
+        }
         return image
     }
 
