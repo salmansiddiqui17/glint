@@ -49,6 +49,12 @@ final class OverlayView: NSView {
     private var highlight: CGRect?
     /// Hides the current message after 1.5 s (FR-46).
     private var messageTimer: Task<Void, Never>?
+    /// The selection size VoiceOver last spoke, and the announcement waiting to be spoken (NFR-13).
+    private var announcedSize: PixelSize?
+    private var pendingSize: PixelSize?
+    private var announcement: Task<Void, Never>?
+    /// How long the size must stay the same before VoiceOver speaks it (OQ-14).
+    private static let announcementDelay: Duration = .milliseconds(500)
 
     private enum Gesture {
         case none, selection, drawing
@@ -64,6 +70,9 @@ final class OverlayView: NSView {
         chrome = OverlayChromeView(frame: frame, image: capture.image, scale: capture.scale)
         super.init(frame: frame)
         wantsLayer = true
+        setAccessibilityElement(true)
+        setAccessibilityRole(.group)
+        setAccessibilityLabel(String(localized: "Screenshot area"))
         addSubview(chrome)
         toolbar.isHidden = true
         toolbar.onAction = { [weak self] action in
@@ -253,6 +262,44 @@ final class OverlayView: NSView {
         palette.update(activeTool: drawing.tool, color: drawing.style.color, canUndo: canvas.canUndo,
                        canRedo: canvas.canRedo)
         updateCursor()
+        scheduleSizeAnnouncement()
+    }
+
+    // MARK: VoiceOver (NFR-13)
+
+    /// Has VoiceOver speak the selection's size, e.g. "600 by 400", once it has stayed the same
+    /// for 0.5 s: after a drag ends, ⌘A, a snap click, or when a run of arrow-key nudges stops.
+    private func scheduleSizeAnnouncement() {
+        guard let selection = editor.selection, !editor.isDragging else {
+            if editor.selection == nil {
+                announcedSize = nil
+                setAccessibilityValue(nil)
+            }
+            cancelAnnouncement()
+            return
+        }
+        let size = outputSize(of: selection)
+        let text = String(localized: "\(size.width) by \(size.height)")
+        setAccessibilityValue(text)
+        guard size != pendingSize else { return }   // already waiting to say this size
+        // A size that changed and changed back says nothing.
+        cancelAnnouncement()
+        guard size != announcedSize, NSWorkspace.shared.isVoiceOverEnabled else { return }
+        pendingSize = size
+        announcement = Task { [weak self] in
+            try? await Task.sleep(for: Self.announcementDelay)
+            guard !Task.isCancelled, let self else { return }
+            announcedSize = size
+            pendingSize = nil
+            NSAccessibility.post(element: self, notification: .announcementRequested,
+                                 userInfo: [.announcement: text, .priority: NSAccessibilityPriorityLevel.high.rawValue])
+        }
+    }
+
+    private func cancelAnnouncement() {
+        announcement?.cancel()
+        announcement = nil
+        pendingSize = nil
     }
 
     /// The exported pixel size of `rect`, which the badge shows (FR-25, FR-42).

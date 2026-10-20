@@ -35,6 +35,7 @@ struct OnboardingView: View {
                 Spacer()
                 Button("Done") { onDone(isFirstRun ? launchAtLogin : nil) }
                     .keyboardShortcut(.defaultAction)
+                    .help("Closes this window.")
             }
         }
         .padding(24)

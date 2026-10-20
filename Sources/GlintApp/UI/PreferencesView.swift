@@ -39,6 +39,7 @@ struct PreferencesView: View {
                     Text("Allow Glint in System Settings › General › Login Items.")
                         .font(.caption).foregroundStyle(.secondary)
                     Button("Open Login Items…") { LoginItem.openSystemSettings() }
+                        .help("Opens System Settings › General › Login Items.")
                 }
             }
             if let loginItemError {

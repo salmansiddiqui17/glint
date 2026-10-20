@@ -100,7 +100,11 @@ final class ToolsPalette: NSVisualEffectView {
             case let .tool(tool):
                 button.isActive = tool == activeTool
             case .color:
-                if color != shownColor { button.image = Self.swatch(color) }
+                if color != shownColor {
+                    button.image = Self.swatch(color)
+                    // VoiceOver reads the colour as the button's value, e.g. "Colour, red" (NFR-12).
+                    button.setAccessibilityValue(NSColor(cgColor: color.cgColor)?.accessibilityName)
+                }
             case .undo:
                 button.isEnabled = canUndo  // the system dims a disabled button
             case .redo:
