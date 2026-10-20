@@ -27,7 +27,8 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func setUp() {
         menuBar = MenuBarController(onCapture: { [weak self] in self?.coordinator.start() },
-                                    onPreferences: { [weak self] in self?.showPreferences() })
+                                    onPreferences: { [weak self] in self?.showPreferences() },
+                                    onAbout: { [weak self] in self?.showAbout() })
         KeyboardShortcuts.onKeyDown(for: .captureScreenshot) { [weak self] in
             self?.coordinator.start()
         }
@@ -64,5 +65,10 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func showPreferences() {
         windows.show("preferences", title: "Glint Preferences") { PreferencesView() }
+    }
+
+    /// FR-5.
+    private func showAbout() {
+        windows.show("about", title: String(localized: "About Glint")) { AboutView() }
     }
 }

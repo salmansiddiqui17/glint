@@ -7,10 +7,12 @@ final class MenuBarController: NSObject {
     private let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
     private let onCapture: () -> Void
     private let onPreferences: () -> Void
+    private let onAbout: () -> Void
 
-    init(onCapture: @escaping () -> Void, onPreferences: @escaping () -> Void) {
+    init(onCapture: @escaping () -> Void, onPreferences: @escaping () -> Void, onAbout: @escaping () -> Void) {
         self.onCapture = onCapture
         self.onPreferences = onPreferences
+        self.onAbout = onAbout
         super.init()
         let image = NSImage(systemSymbolName: "camera.viewfinder", accessibilityDescription: "Glint")
         image?.isTemplate = true
@@ -23,6 +25,7 @@ final class MenuBarController: NSObject {
         menu.addItem(take)
         menu.addItem(.separator())
         menu.addItem(NSMenuItem(title: "Preferences…", action: #selector(preferences), keyEquivalent: ","))
+        menu.addItem(NSMenuItem(title: String(localized: "About Glint"), action: #selector(about), keyEquivalent: ""))
         menu.addItem(.separator())
         menu.addItem(NSMenuItem(title: "Quit Glint", action: #selector(quit), keyEquivalent: "q"))
         menu.items.forEach { $0.target = self }
@@ -35,6 +38,8 @@ final class MenuBarController: NSObject {
     }
 
     @objc private func preferences() { onPreferences() }
+
+    @objc private func about() { onAbout() }
 
     @objc private func quit() { NSApp.terminate(nil) }
 }
