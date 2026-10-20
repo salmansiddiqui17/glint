@@ -233,14 +233,16 @@ final class OverlayView: NSView {
 
     // MARK: Window snapping (FR-19)
 
-    /// The frame a click would select, while no display has a selection and the pointer is on
-    /// this one. With a selection there is no hover highlight, though a click outside it still
-    /// snaps (OQ-12).
+    /// The frame a click would select, while no display has a selection, no tool is active and
+    /// the pointer is on this one. With a selection there is no hover highlight, though a click
+    /// outside it still snaps (OQ-12).
     private func hoverHighlight() -> CGRect? {
-        guard editor.selection == nil, delegate?.overlaySelectionOwner() == nil, let window else { return nil }
+        guard editor.selection == nil, drawing.tool == nil, delegate?.overlaySelectionOwner() == nil,
+              let window else { return nil }
         let viewPoint = convert(window.mouseLocationOutsideOfEventStream, from: nil)
-        // Half-open, so on the edge two displays share only one of them highlights.
-        guard bounds.contains(viewPoint) else { return nil }
+        // Inclusive of the top edge, like updateCursor(): on the edge two displays share, only
+        // one of them highlights.
+        guard NSMouseInRect(viewPoint, bounds, isFlipped) else { return nil }
         return editor.snapHighlight(at: flip.point(viewPoint))
     }
 
