@@ -17,7 +17,7 @@ struct PreferencesView: View {
 
     var body: some View {
         Form {
-            KeyboardShortcuts.Recorder("Capture shortcut:", name: .captureScreenshot)
+            KeyboardShortcuts.Recorder(String(localized: "Capture shortcut:"), name: .captureScreenshot)
                 .shortcutValidation(Self.validate)
                 // FR-7: system shortcuts are rejected outright, with no "Use Anyway".
                 .keyboardShortcutsConflictPolicy(.init(systemShortcut: .block))
@@ -78,6 +78,6 @@ struct PreferencesView: View {
     private static func validate(_ shortcut: KeyboardShortcuts.Shortcut) -> KeyboardShortcuts.ValidationResult {
         let isMenuShortcut = shortcut.modifiers == .command
             && ["q", ","].contains(shortcut.nsMenuItemKeyEquivalent?.lowercased())
-        return isMenuShortcut ? .disallow(reason: "This shortcut is used by Glint's menu.") : .allow
+        return isMenuShortcut ? .disallow(reason: String(localized: "This shortcut is used by Glint's menu.")) : .allow
     }
 }

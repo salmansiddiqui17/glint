@@ -9,7 +9,8 @@ struct ScreenRecordingRow: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Label(granted ? "Screen Recording: Granted" : "Screen Recording: Not granted",
+            Label(granted ? String(localized: "Screen Recording: Granted")
+                          : String(localized: "Screen Recording: Not granted"),
                   systemImage: granted ? "checkmark.circle.fill" : "xmark.circle.fill")
                 .foregroundStyle(granted ? .green : .red)
             if !granted {
@@ -24,8 +25,8 @@ struct ScreenRecordingRow: View {
                     }
                 }
                 Text(requested
-                     ? "If no prompt appears, click Open Settings and turn Glint on. If it's already on but this still says Not granted, remove Glint with −, click Grant Access again, then Relaunch."
-                     : "Click Grant Access, then allow Glint when macOS asks.")
+                     ? String(localized: "If no prompt appears, click Open Settings and turn Glint on. If it's already on but this still says Not granted, remove Glint with −, click Grant Access again, then Relaunch.")
+                     : String(localized: "Click Grant Access, then allow Glint when macOS asks."))
                     .font(.caption).foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }

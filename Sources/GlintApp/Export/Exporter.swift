@@ -104,7 +104,7 @@ final class SaveFormatAccessory: NSObject {
 
     init(format: ImageFormat) {
         self.format = format
-        let label = NSTextField(labelWithString: "Format:")
+        let label = NSTextField(labelWithString: String(localized: "Format:"))
         view = NSStackView(views: [label, popUp])
         super.init()
         view.edgeInsets = NSEdgeInsets(top: 8, left: 8, bottom: 8, right: 8)

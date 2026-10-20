@@ -15,15 +15,16 @@ struct OnboardingView: View {
             HStack(spacing: 12) {
                 Image(systemName: "camera.viewfinder").font(.system(size: 40))
                     .accessibilityHidden(true)
-                Text(isFirstRun ? "Welcome to Glint" : "Screen Recording is off").font(.title.bold())
+                Text(isFirstRun ? String(localized: "Welcome to Glint") : String(localized: "Screen Recording is off"))
+                    .font(.title.bold())
             }
             Text(isFirstRun
-                 ? "Glint captures part of your screen so you can annotate it, then copy or save it. Everything stays on this Mac."
-                 : "Glint needs Screen Recording access to capture your screen. It isn't allowed right now, or macOS is asking again.")
+                 ? String(localized: "Glint captures part of your screen so you can annotate it, then copy or save it. Everything stays on this Mac.")
+                 : String(localized: "Glint needs Screen Recording access to capture your screen. It isn't allowed right now, or macOS is asking again."))
                 .fixedSize(horizontal: false, vertical: true)
             HStack {
                 Text("Capture shortcut:")
-                Text(KeyboardShortcuts.getShortcut(for: .captureScreenshot)?.description ?? "None")
+                Text(KeyboardShortcuts.getShortcut(for: .captureScreenshot)?.description ?? String(localized: "None"))
                     .font(.body.monospaced().bold())
             }
             ScreenRecordingRow()

@@ -1,4 +1,5 @@
 import CoreGraphics
+import Foundation
 
 /// The drawing tools in the tools palette, top to bottom (FR-28).
 public enum Tool: String, CaseIterable, Sendable {
@@ -17,10 +18,11 @@ public enum Tool: String, CaseIterable, Sendable {
 public enum RedactionStyle: String, CaseIterable, Sendable {
     case pixelate, blur
 
+    /// Looked up in the app's String Catalog (NFR-15).
     public var displayName: String {
         switch self {
-        case .pixelate: "Pixelate"
-        case .blur: "Blur"
+        case .pixelate: String(localized: "Pixelate")
+        case .blur: String(localized: "Blur")
         }
     }
 }

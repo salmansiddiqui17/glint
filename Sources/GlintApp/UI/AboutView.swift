@@ -16,7 +16,8 @@ struct AboutView: View {
                 .frame(width: 96, height: 96)
                 .accessibilityHidden(true)
             Text(verbatim: "Glint").font(.title.bold())
-            Text("Version \(version) (build \(build))")
+            // A plain format key, so the String Catalog's key matches it (NFR-15).
+            Text(String(format: String(localized: "Version %@ (build %@)"), version, build))
                 .foregroundStyle(.secondary)
                 .textSelection(.enabled)
             Text(verbatim: copyright).font(.callout)

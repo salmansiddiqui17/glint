@@ -33,6 +33,12 @@ jobs:
       - name: Run unit tests
         run: swift test
 
+      - name: Check the String Catalog is up to date
+        run: |
+          scripts/sync-strings.sh
+          git diff --exit-code Resources/Localizable.xcstrings \
+            || { echo "::error::Run scripts/sync-strings.sh and commit Resources/Localizable.xcstrings."; exit 1; }
+
       - name: Build Glint.app (release, ad-hoc signed)
         env:
           GLINT_SIGN_IDENTITY: "-"

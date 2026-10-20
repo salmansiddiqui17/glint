@@ -49,6 +49,9 @@ the comment around each one explains the behaviour it refers to.
 - The project builds in Swift 6 language mode with strict concurrency checking; please keep it free of warnings.
 - Glint must never gain a network entitlement or send data anywhere. The build script refuses to
   produce an app with one.
+- Write user-visible text as `String(localized:)` in AppKit code, or as a SwiftUI string literal.
+  Then run `scripts/sync-strings.sh` and commit `Resources/Localizable.xcstrings`, the String Catalog
+  that translations will go into. CI fails when the catalog is out of date.
 - Use [Conventional Commits](https://www.conventionalcommits.org/) for commit messages
   (`feat(core): …`, `fix(app): …`, `docs: …`).
 - For user-visible changes, add a line to the `Unreleased` section of [CHANGELOG.md](CHANGELOG.md).

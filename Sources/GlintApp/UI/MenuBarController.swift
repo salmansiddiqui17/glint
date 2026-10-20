@@ -20,14 +20,16 @@ final class MenuBarController: NSObject {
         statusItem.autosaveName = "Glint"   // keeps its place if the user ⌘-drags it
 
         let menu = NSMenu()
-        let take = NSMenuItem(title: "Take Screenshot", action: #selector(takeScreenshot), keyEquivalent: "")
+        let take = NSMenuItem(title: String(localized: "Take Screenshot"), action: #selector(takeScreenshot),
+                              keyEquivalent: "")
         take.setShortcut(for: .captureScreenshot)   // shows the live hotkey; blank when disabled
         menu.addItem(take)
         menu.addItem(.separator())
-        menu.addItem(NSMenuItem(title: "Preferences…", action: #selector(preferences), keyEquivalent: ","))
+        menu.addItem(NSMenuItem(title: String(localized: "Preferences…"), action: #selector(preferences),
+                                keyEquivalent: ","))
         menu.addItem(NSMenuItem(title: String(localized: "About Glint"), action: #selector(about), keyEquivalent: ""))
         menu.addItem(.separator())
-        menu.addItem(NSMenuItem(title: "Quit Glint", action: #selector(quit), keyEquivalent: "q"))
+        menu.addItem(NSMenuItem(title: String(localized: "Quit Glint"), action: #selector(quit), keyEquivalent: "q"))
         menu.items.forEach { $0.target = self }
         statusItem.menu = menu
     }

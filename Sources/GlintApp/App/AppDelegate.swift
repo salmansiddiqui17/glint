@@ -47,7 +47,7 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
     /// First run (FR-10), or a capture found Screen Recording off (FR-12).
     private func showOnboarding() {
         let isFirstRun = !settings.hasCompletedOnboarding
-        windows.show("onboarding", title: isFirstRun ? "Welcome to Glint" : "Glint") {
+        windows.show("onboarding", title: isFirstRun ? String(localized: "Welcome to Glint") : "Glint") {
             OnboardingView(isFirstRun: isFirstRun) { [weak self] launchAtLogin in
                 guard let self else { return }
                 if let launchAtLogin {
@@ -64,7 +64,7 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func showPreferences() {
-        windows.show("preferences", title: "Glint Preferences") { PreferencesView() }
+        windows.show("preferences", title: String(localized: "Glint Preferences")) { PreferencesView() }
     }
 
     /// FR-5.

@@ -279,7 +279,8 @@ final class OverlayView: NSView {
             return
         }
         let size = outputSize(of: selection)
-        let text = String(localized: "\(size.width) by \(size.height)")
+        // A plain format key, so the String Catalog's key matches it (NFR-15).
+        let text = String(format: String(localized: "%lld by %lld"), size.width, size.height)
         setAccessibilityValue(text)
         guard size != pendingSize else { return }   // already waiting to say this size
         // A size that changed and changed back says nothing.

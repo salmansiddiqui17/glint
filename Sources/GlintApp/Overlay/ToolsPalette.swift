@@ -24,17 +24,18 @@ final class ToolsPalette: NSVisualEffectView {
     }
 
     private static let items: [Item] = [
-        Item(action: .tool(.pencil), symbol: "pencil", title: "Pencil", shortcut: nil),
-        Item(action: .tool(.line), symbol: "line.diagonal", title: "Line", shortcut: nil),
-        Item(action: .tool(.arrow), symbol: "arrow.up.right", title: "Arrow", shortcut: nil),
-        Item(action: .tool(.ellipse), symbol: "circle", title: "Ellipse", shortcut: nil),
-        Item(action: .tool(.rectangle), symbol: "rectangle", title: "Rectangle", shortcut: nil),
-        Item(action: .tool(.marker), symbol: "highlighter", title: "Marker", shortcut: nil),
-        Item(action: .tool(.text), symbol: "textformat", title: "Text", shortcut: nil),
-        Item(action: .tool(.redact), symbol: "squareshape.split.3x3", title: "Redact", shortcut: "⌘B"),
-        Item(action: .color, symbol: nil, title: "Colour", shortcut: nil),
-        Item(action: .undo, symbol: "arrow.uturn.backward", title: "Undo", shortcut: "⌘Z"),
-        Item(action: .redo, symbol: "arrow.uturn.forward", title: "Redo", shortcut: "⇧⌘Z"),
+        Item(action: .tool(.pencil), symbol: "pencil", title: String(localized: "Pencil"), shortcut: nil),
+        Item(action: .tool(.line), symbol: "line.diagonal", title: String(localized: "Line"), shortcut: nil),
+        Item(action: .tool(.arrow), symbol: "arrow.up.right", title: String(localized: "Arrow"), shortcut: nil),
+        Item(action: .tool(.ellipse), symbol: "circle", title: String(localized: "Ellipse"), shortcut: nil),
+        Item(action: .tool(.rectangle), symbol: "rectangle", title: String(localized: "Rectangle"), shortcut: nil),
+        Item(action: .tool(.marker), symbol: "highlighter", title: String(localized: "Marker"), shortcut: nil),
+        Item(action: .tool(.text), symbol: "textformat", title: String(localized: "Text"), shortcut: nil),
+        Item(action: .tool(.redact), symbol: "squareshape.split.3x3", title: String(localized: "Redact"),
+             shortcut: "⌘B"),
+        Item(action: .color, symbol: nil, title: String(localized: "Colour"), shortcut: nil),
+        Item(action: .undo, symbol: "arrow.uturn.backward", title: String(localized: "Undo"), shortcut: "⌘Z"),
+        Item(action: .redo, symbol: "arrow.uturn.forward", title: String(localized: "Redo"), shortcut: "⇧⌘Z"),
     ]
 
     static var size: CGSize {
@@ -61,7 +62,7 @@ final class ToolsPalette: NSVisualEffectView {
         layer?.masksToBounds = true
         setAccessibilityElement(true)   // otherwise VoiceOver skips the group (NFR-12)
         setAccessibilityRole(.toolbar)
-        setAccessibilityLabel("Drawing tools")
+        setAccessibilityLabel(String(localized: "Drawing tools"))
 
         for (index, item) in Self.items.enumerated() {
             // Top to bottom in a bottom-left-origin view: the first item has the highest y.
@@ -154,7 +155,7 @@ final class ToolsPalette: NSVisualEffectView {
             circle.stroke()
             return true
         }
-        image.accessibilityDescription = "Colour"
+        image.accessibilityDescription = String(localized: "Colour")
         return image
     }
 

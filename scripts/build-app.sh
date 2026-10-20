@@ -64,6 +64,9 @@ if [[ -n "${GLINT_BUILD:-}" ]]; then
   /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $GLINT_BUILD" "$APP/Contents/Info.plist"
 fi
 cp Resources/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"   # regenerate with scripts/make-icon.sh
+# The String Catalog (NFR-15). English is the source language and needs no table, so this writes
+# nothing until a translation is added; then each language gets its own <language>.lproj folder.
+xcrun xcstringstool compile Resources/Localizable.xcstrings --output-directory "$APP/Contents/Resources"
 # SwiftPM resource bundles (KeyboardShortcuts' localisations); found via Bundle.main.resourceURL.
 find "$BIN" -maxdepth 1 -name '*.bundle' -exec cp -R {} "$APP/Contents/Resources/" \;
 

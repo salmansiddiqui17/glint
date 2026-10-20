@@ -1,0 +1,227 @@
+{
+  "sourceLanguage" : "en",
+  "strings" : {
+    "%lld by %lld" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$lld by %2$lld"
+          }
+        }
+      }
+    },
+    "About Glint" : {
+
+    },
+    "Acknowledgements" : {
+
+    },
+    "Allow Glint in System Settings › General › Login Items." : {
+
+    },
+    "Arrow" : {
+
+    },
+    "Asks macOS for Screen Recording access." : {
+
+    },
+    "Blur" : {
+
+    },
+    "Capture actions" : {
+
+    },
+    "Capture shortcut:" : {
+
+    },
+    "Click Grant Access, then allow Glint when macOS asks." : {
+
+    },
+    "Close" : {
+
+    },
+    "Closes this window." : {
+
+    },
+    "Colour" : {
+
+    },
+    "Copy" : {
+
+    },
+    "Copy Text" : {
+
+    },
+    "Couldn't read text" : {
+
+    },
+    "Default save format" : {
+
+    },
+    "Done" : {
+
+    },
+    "Drawing tools" : {
+
+    },
+    "Ellipse" : {
+
+    },
+    "Exports Retina captures at their on-screen size instead of full pixel resolution." : {
+
+    },
+    "Format:" : {
+
+    },
+    "Glint Preferences" : {
+
+    },
+    "Glint captures part of your screen so you can annotate it, then copy or save it. Everything stays on this Mac." : {
+
+    },
+    "Glint needs Screen Recording access to capture your screen. It isn't allowed right now, or macOS is asking again." : {
+
+    },
+    "Grant Access…" : {
+
+    },
+    "How the Redact tool (⌘B) hides what is under it." : {
+
+    },
+    "If no prompt appears, click Open Settings and turn Glint on. If it's already on but this still says Not granted, remove Glint with −, click Grant Access again, then Relaunch." : {
+
+    },
+    "Launch Glint at login" : {
+
+    },
+    "Launch at login" : {
+
+    },
+    "Line" : {
+
+    },
+    "Marker" : {
+
+    },
+    "No text found" : {
+
+    },
+    "None" : {
+
+    },
+    "Open Login Items…" : {
+
+    },
+    "Open Settings…" : {
+
+    },
+    "Opens Privacy & Security › Screen & System Audio Recording." : {
+
+    },
+    "Opens System Settings › General › Login Items." : {
+
+    },
+    "Pencil" : {
+
+    },
+    "Pixelate" : {
+
+    },
+    "Pixelate is safer for text: a light blur can sometimes be reversed." : {
+
+    },
+    "Preferences…" : {
+
+    },
+    "Press a new shortcut, or clear it to use the menu only." : {
+
+    },
+    "Quit Glint" : {
+
+    },
+    "Reading text" : {
+
+    },
+    "Rectangle" : {
+
+    },
+    "Redact" : {
+
+    },
+    "Redaction style" : {
+
+    },
+    "Redo" : {
+
+    },
+    "Relaunch" : {
+
+    },
+    "Restarts Glint so macOS applies the new permission." : {
+
+    },
+    "Save" : {
+
+    },
+    "Save at standard resolution (1×)" : {
+
+    },
+    "Scales Retina captures down to their on-screen size in points." : {
+
+    },
+    "Screen Recording is off" : {
+
+    },
+    "Screen Recording: Granted" : {
+
+    },
+    "Screen Recording: Not granted" : {
+
+    },
+    "Screenshot area" : {
+
+    },
+    "Starts Glint when you log in, so the shortcut always works." : {
+
+    },
+    "Starts Glint when you log in." : {
+
+    },
+    "Take Screenshot" : {
+
+    },
+    "Text" : {
+
+    },
+    "The format the Save dialog starts with." : {
+
+    },
+    "This shortcut is used by Glint's menu." : {
+
+    },
+    "Undo" : {
+
+    },
+    "Version %@ (build %@)" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Version %1$@ (build %2$@)"
+          }
+        }
+      }
+    },
+    "Welcome to Glint" : {
+
+    },
+    "⌘C or Return" : {
+
+    },
+    "⌘X or Esc" : {
+
+    }
+  },
+  "version" : "1.0"
+}
