@@ -31,7 +31,18 @@ jobs:
           swift --version
 
       - name: Run unit tests
-        run: swift test
+        run: |
+          mkdir -p "$RUNNER_TEMP/test-attachments"
+          swift test --attachments-path "$RUNNER_TEMP/test-attachments"
+
+      # Golden-image failures attach the expected, actual and diff images (NFR-17).
+      - name: Upload test attachments
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-attachments-${{ github.run_number }}
+          path: ${{ runner.temp }}/test-attachments
+          if-no-files-found: ignore
 
       - name: Check the String Catalog is up to date
         run: |
@@ -55,3 +66,28 @@ jobs:
           name: Glint-ci-${{ github.run_number }}
           path: dist/
           retention-days: 14
+
+  launch-smoke-test:
+    # NFR-11: the app built with the newest SDK must still launch on the older supported macOS
+    # versions. The full test suite runs on macOS 27 above.
+    name: Launch on macOS ${{ matrix.macos }}
+    needs: build-and-test
+    strategy:
+      fail-fast: false
+      matrix:
+        macos: ["15", "26"]
+    runs-on: macos-${{ matrix.macos }}
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: Glint-ci-${{ github.run_number }}
+          path: dist
+
+      - name: Unpack Glint.app
+        run: ditto -x -k dist/Glint-*.zip build
+
+      - name: Launch and check it stays running
+        run: scripts/smoke-launch.sh build/Glint.app
