@@ -1,4 +1,5 @@
 import CoreGraphics
+import CoreImage
 
 /// A solid blue test image with a red `marker` × `marker` block in its top-left corner.
 ///
@@ -39,6 +40,27 @@ struct RGBA8: Equatable, CustomStringConvertible {
     let red, green, blue, alpha: Int
 
     var description: String { "(\(red), \(green), \(blue), \(alpha))" }
+}
+
+/// The colour a redaction patch shows at pixel (`x`, `y`) of its area, `frameWidth` pixels wide:
+/// a full-size patch's own pixel, or for a patch with one pixel per block, its block's pixel.
+func shownColor(_ patch: CGImage, frameWidth: Int, x: Int, y: Int, strength: Int) -> RGBA8 {
+    patch.width == frameWidth ? pixelColor(patch, x: x, y: y) : pixelColor(patch, x: x / strength, y: y / strength)
+}
+
+/// Core Image's pixellate at full size, the way P2 made pixelate patches: the reference the
+/// one-pixel-per-block patches must match.
+func fullSizePixellate(_ image: CGImage, strength: CGFloat) -> CGImage? {
+    let input = CIImage(cgImage: image)
+    let output = CIFilter(name: "CIPixellate", parameters: [
+        kCIInputImageKey: input.clampedToExtent(),
+        kCIInputScaleKey: strength,
+        kCIInputCenterKey: CIVector(x: input.extent.minX, y: input.extent.maxY),
+    ])?.outputImage?.cropped(to: input.extent)
+    return output.flatMap {
+        CIContext().createCGImage($0, from: input.extent, format: .RGBA8,
+                                  colorSpace: image.colorSpace ?? CGColorSpace(name: CGColorSpace.sRGB)!)
+    }
 }
 
 /// The colour of the pixel at (`x`, `y`) counted from the image's top-left corner, converted to sRGB.

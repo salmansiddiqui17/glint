@@ -48,34 +48,36 @@ struct RedactionTests {
         #expect(Redaction.strength(strokeWidth: 10) == 40)
     }
 
-    @Test func pixelateMakesFlatDistinctBlocksOnAGridFromTheTopLeft() throws {
+    @Test func pixelateKeepsOnePixelPerBlockOnAGridFromTheTopLeft() throws {
         let (width, height) = (25, 17)                                 // partial blocks on the right and bottom
-        let result = try #require(Redaction.obscure(gradient(width: width, height: height), style: .pixelate,
-                                                    strength: 8))
-        #expect(result.width == width && result.height == height)
-        var blocks: [[RGBA8]] = []
-        for blockY in stride(from: 0, to: height, by: 8) {
-            var row: [RGBA8] = []
-            for blockX in stride(from: 0, to: width, by: 8) {
-                let reference = pixelColor(result, x: blockX, y: blockY)
-                #expect(reference.alpha == 255)
-                for x in blockX..<min(blockX + 8, width) {
-                    for y in blockY..<min(blockY + 8, height) where pixelColor(result, x: x, y: y) != reference {
-                        Issue.record("block at \(blockX),\(blockY) is not flat at \(x),\(y)")
-                        return
-                    }
-                }
-                row.append(reference)
+        let source = gradient(width: width, height: height)
+        let result = try #require(Redaction.obscure(source, style: .pixelate, strength: 8))
+        #expect(result.width == 4 && result.height == 3)               // NFR-6: 1/64 of the pixels
+        // Each block's pixel is what a full-size pixellate shows across that whole block.
+        let reference = try #require(fullSizePixellate(source, strength: 8))
+        for x in 0..<width {
+            for y in 0..<height where pixelColor(reference, x: x, y: y) != pixelColor(result, x: x / 8, y: y / 8) {
+                Issue.record("pixel \(x),\(y) differs from its block")
+                return
             }
-            blocks.append(row)
         }
         // Neighbouring blocks differ, across and down: the blocks really follow this grid.
-        for (y, row) in blocks.enumerated() {
-            for (x, block) in row.enumerated() {
-                if x + 1 < row.count { #expect(block != row[x + 1]) }
-                if y + 1 < blocks.count { #expect(block != blocks[y + 1][x]) }
+        for x in 0..<4 {
+            for y in 0..<3 {
+                #expect(pixelColor(result, x: x, y: y).alpha == 255)
+                if x < 3 { #expect(pixelColor(result, x: x, y: y) != pixelColor(result, x: x + 1, y: y)) }
+                if y < 2 { #expect(pixelColor(result, x: x, y: y) != pixelColor(result, x: x, y: y + 1)) }
             }
         }
+    }
+
+    @Test func blockRectCoversWholeBlocksFromTheFrameCorner() throws {
+        let frame = CGRect(x: 10, y: 20, width: 12.5, height: 8.5)    // 25 × 17 px at 2×
+        let compact = try #require(Redaction.obscure(gradient(width: 25, height: 17), style: .pixelate, strength: 8))
+        #expect(Redaction.blockRect(for: compact, frame: frame, scale: 2, strength: 8)
+            == CGRect(x: 10, y: 20, width: 16, height: 12))            // 4 × 3 blocks of 8 px
+        let blurred = try #require(Redaction.obscure(gradient(width: 25, height: 17), style: .blur, strength: 8))
+        #expect(Redaction.blockRect(for: blurred, frame: frame, scale: 2, strength: 8) == frame)
     }
 
     @Test func blurRemovesTheStripesAndStaysOpaque() throws {
@@ -93,7 +95,8 @@ struct RedactionTests {
         let source = flat([0.2, 0.6, 0.4, 1], in: p3)
         let result = try #require(Redaction.obscure(source, style: style, strength: 8))
         #expect(result.colorSpace?.name == CGColorSpace.displayP3)
-        let before = pixelColor(source, x: 8, y: 8), after = pixelColor(result, x: 8, y: 8)
+        let before = pixelColor(source, x: 8, y: 8)
+        let after = pixelColor(result, x: result.width / 2, y: result.height / 2)
         #expect(abs(before.red - after.red) <= 1 && abs(before.green - after.green) <= 1
                     && abs(before.blue - after.blue) <= 1)
     }

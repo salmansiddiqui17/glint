@@ -8,6 +8,8 @@ import os
 /// `container` is geometry-flipped, so every sublayer uses GlintCore's top-left display points.
 /// Vector shapes are shape layers (GPU paths; the frozen image is never redrawn, NFR-2). Text and
 /// redactions show the very images the export renderer draws, so the export matches the screen.
+/// A redaction entirely under a later one never shows, so its patch is dropped (NFR-6) and made
+/// again only if that later one is undone.
 @MainActor
 final class AnnotationLayers {
     private static let logger = Logger(subsystem: GlintCore.bundleIdentifier, category: "capture")
@@ -16,7 +18,16 @@ final class AnnotationLayers {
     private let scale: CGFloat
     private let committedRoot = CALayer()
     /// Layers for the committed annotations, in order, with each redaction's patch.
-    private var committed: [(annotation: Annotation, layer: CALayer, patch: CGImage?)] = []
+    private var committed: [Committed] = []
+
+    private struct Committed {
+        let annotation: Annotation
+        let layer: CALayer
+        /// The redaction's patch; nil for other annotations, a patch that could not be made, or
+        /// one dropped because a later redaction covers it.
+        var patch: CGImage?
+        let patchLayer: PatchLayer?
+    }
     private let draftShape: VectorLayer
     private let draftOutline: DashedOutline
     private let textLayer = CALayer()
@@ -80,45 +91,70 @@ final class AnnotationLayers {
         for stale in committed[kept...] { stale.layer.removeFromSuperlayer() }
         committed.removeSubrange(kept...)
         for index in kept..<annotations.count {
-            let (layer, patch) = makeLayer(for: annotations[index], below: Array(annotations[..<index]))
-            committedRoot.addSublayer(layer)
-            committed.append((annotations[index], layer, patch))
+            let entry = makeLayer(for: annotations[index], below: Array(annotations[..<index]))
+            committedRoot.addSublayer(entry.layer)
+            committed.append(entry)
         }
+        updateCoveredPatches()
     }
 
-    /// The layer for one annotation, and the patch it shows if it is a redaction. Redactions
+    /// The layer for one annotation, with the patch it shows if it is a redaction. Redactions
     /// beneath it reuse the patches already made, so each redaction is rendered once.
-    private func makeLayer(for annotation: Annotation, below: [Annotation]) -> (CALayer, CGImage?) {
+    private func makeLayer(for annotation: Annotation, below: [Annotation]) -> Committed {
         switch annotation {
         case let .text(text):
             let layer = CALayer()
             let layout = TextLayout(text: text.string, fontSize: text.fontSize)
             setText(layout, color: text.color, origin: text.origin, on: layer)
-            return (layer, nil)
+            return Committed(annotation: annotation, layer: layer, patch: nil, patchLayer: nil)
         case let .redaction(rect, style, width):
-            let layer = CALayer()
-            let patches = Dictionary(uniqueKeysWithValues: committed.enumerated().compactMap { index, entry in
-                entry.patch.map { (index, $0) }
-            })
-            let patch = Renderer.redactionPatch(image, scale: scale, below: below, patches: patches, rect: rect,
+            let patchLayer = PatchLayer(frame: patchFrame(for: rect), strength: Redaction.strength(strokeWidth: width),
+                                        scale: scale)
+            let patch = Renderer.redactionPatch(image, scale: scale, below: below, patches: knownPatches(), rect: rect,
                                                 style: style, strokeWidth: width)
-            layer.contents = patch
-            layer.contentsGravity = .resize
-            layer.isOpaque = true
-            if patch == nil {
-                // Never show the area unredacted; the export fails closed for the same reason.
-                Self.logger.error("Could not make a redaction patch")
-                layer.backgroundColor = NSColor.gray.cgColor
-            }
-            layer.frame = Renderer.patchFrame(for: rect, scale: scale,
-                                              imageSize: PixelSize(width: image.width, height: image.height))
-            return (layer, patch)
+            if patch == nil { Self.logger.error("Could not make a redaction patch") }
+            patchLayer.show(patch)
+            return Committed(annotation: annotation, layer: patchLayer.root, patch: patch, patchLayer: patchLayer)
         default:
             let vector = VectorLayer(scale: scale)
             vector.root.frame = container.bounds
             vector.apply(AnnotationGeometry.shape(for: annotation))
-            return (vector.root, nil)
+            return Committed(annotation: annotation, layer: vector.root, patch: nil, patchLayer: nil)
         }
+    }
+
+    /// Drops the patches of redactions that a later redaction covers entirely, which never show,
+    /// and remakes those that are no longer covered because an undo removed the later one (NFR-6).
+    private func updateCoveredPatches() {
+        let annotations = committed.map(\.annotation)
+        let covered = Renderer.coveredRedactions(in: annotations, scale: scale,
+                                                 imageSize: PixelSize(width: image.width, height: image.height))
+        for index in committed.indices {
+            guard case let .redaction(rect, _, _) = annotations[index],
+                  let patchLayer = committed[index].patchLayer else { continue }
+            if covered.contains(index), !patchLayer.isCovered {
+                committed[index].patch = nil
+                patchLayer.cover()
+            } else if !covered.contains(index), patchLayer.isCovered {
+                // Patches beneath it that were dropped too are made again on the way.
+                let patch = Renderer.redactionPatches(image, scale: scale, annotations: Array(annotations[...index]),
+                                                      covering: patchFrame(for: rect), reusing: knownPatches())?[index]
+                if patch == nil { Self.logger.error("Could not remake a redaction patch") }
+                committed[index].patch = patch
+                patchLayer.show(patch)
+            }
+        }
+    }
+
+    /// The patches the committed redactions hold, by index.
+    private func knownPatches() -> [Int: CGImage] {
+        Dictionary(uniqueKeysWithValues: committed.enumerated().compactMap { index, entry in
+            entry.patch.map { (index, $0) }
+        })
+    }
+
+    private func patchFrame(for rect: CGRect) -> CGRect {
+        Renderer.patchFrame(for: rect, scale: scale, imageSize: PixelSize(width: image.width, height: image.height))
     }
 
     // MARK: Drag in progress
@@ -196,6 +232,46 @@ final class AnnotationLayers {
         let placed = frame.offsetBy(dx: origin.x, dy: origin.y)
         return placed.minX > display.minX && placed.maxX < display.maxX
             && placed.minY > display.minY && placed.maxY < display.maxY
+    }
+}
+
+/// A redaction's patch, clipped to its frame (FR-36). A pixelate patch with one pixel per block
+/// is scaled up without smoothing, and reaches past the frame when its last blocks are partial.
+@MainActor
+private final class PatchLayer {
+    let root = CALayer()
+    private let image = CALayer()
+    private let strength: CGFloat
+    private let scale: CGFloat
+    /// Whether a later redaction covers this one, so it shows nothing and holds no image.
+    private(set) var isCovered = false
+
+    init(frame: CGRect, strength: CGFloat, scale: CGFloat) {
+        self.strength = strength
+        self.scale = scale
+        root.frame = frame
+        root.masksToBounds = true
+        image.magnificationFilter = .nearest
+        image.isOpaque = true
+        root.addSublayer(image)
+    }
+
+    /// Shows `patch`, or grey when there is none: never the area unredacted, as the export fails
+    /// closed for the same reason.
+    func show(_ patch: CGImage?) {
+        isCovered = false
+        root.isHidden = false
+        image.contents = patch
+        let size = patch.map { Redaction.blockRect(for: $0, frame: root.frame, scale: scale, strength: strength).size }
+        image.frame = CGRect(origin: .zero, size: size ?? root.bounds.size)
+        root.backgroundColor = patch == nil ? NSColor.gray.cgColor : nil
+    }
+
+    /// Hides the layer and lets its image go, while a later redaction covers it.
+    func cover() {
+        isCovered = true
+        root.isHidden = true
+        image.contents = nil
     }
 }
 

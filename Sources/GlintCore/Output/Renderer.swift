@@ -70,23 +70,31 @@ public enum Renderer {
     /// order with earlier patches drawn as images, so each redaction is rendered once.
     ///
     /// With `region`, only the redactions that show there are made: those reaching `region`, and
-    /// those under a later one that does (it obscures what is beneath it). `known` patches are
-    /// reused. Nil when a patch that is needed cannot be made.
+    /// those under a later one that is made here (it obscures what is beneath it). A redaction
+    /// entirely inside a later one whose patch is reused is hidden from that point on, so it is
+    /// made only for a patch made here before it (NFR-6: the overlay drops such patches).
+    /// `known` patches are reused. Nil when a patch that is needed cannot be made.
     public static func redactionPatches(_ image: CGImage, scale: CGFloat, annotations: [Annotation],
                                         covering region: CGRect? = nil,
                                         reusing known: [Int: CGImage] = [:],
                                         obscure: Obscure = Redaction.obscure) -> [Int: CGImage]? {
         let imageSize = size(of: image)
         var needed = Set<Int>()
-        var reach = region.map { [$0] } ?? []
+        // The later redactions already needed: those made here, and those whose patch is reused.
+        var made: [(index: Int, frame: CGRect)] = []
+        var reused: [(index: Int, frame: CGRect)] = []
         for index in annotations.indices.reversed() {
             guard case let .redaction(rect, _, _) = annotations[index] else { continue }
             let frame = patchFrame(for: rect, scale: scale, imageSize: imageSize)
             guard frame.width > 0, frame.height > 0 else { continue }   // covers no pixels: nothing to show
-            if region == nil || reach.contains(where: { $0.intersects(frame) }) {
-                needed.insert(index)
-                reach.append(frame)
+            if let region {
+                let hiddenFrom = reused.filter { $0.frame.contains(frame) }.map(\.index).min() ?? annotations.count
+                let shows = hiddenFrom == annotations.count && region.intersects(frame)
+                let beneathMade = made.contains { $0.index < hiddenFrom && $0.frame.intersects(frame) }
+                guard shows || beneathMade else { continue }
             }
+            needed.insert(index)
+            if known[index] == nil { made.append((index, frame)) } else { reused.append((index, frame)) }
         }
         var patches: [Int: CGImage] = [:]
         for index in annotations.indices where needed.contains(index) {
@@ -111,6 +119,21 @@ public enum Renderer {
         return obscure(region, style, Redaction.strength(strokeWidth: strokeWidth))
     }
 
+    /// Indices of the redactions that a later redaction covers entirely: they never show, so the
+    /// overlay need not keep their patches (NFR-6). Redactions that cover no pixels are left out.
+    public static func coveredRedactions(in annotations: [Annotation], scale: CGFloat,
+                                         imageSize: PixelSize) -> Set<Int> {
+        let frames = annotations.map { annotation -> CGRect? in
+            guard case let .redaction(rect, _, _) = annotation else { return nil }
+            let frame = patchFrame(for: rect, scale: scale, imageSize: imageSize)
+            return frame.width > 0 && frame.height > 0 ? frame : nil
+        }
+        return Set(frames.indices.filter { index in
+            guard let frame = frames[index] else { return false }
+            return frames[(index + 1)...].contains { $0?.contains(frame) == true }
+        })
+    }
+
     /// Hides an image's content for a redaction (`Redaction.obscure`), or nil when it cannot.
     public typealias Obscure = @Sendable (CGImage, RedactionStyle, CGFloat) -> CGImage?
 
@@ -129,9 +152,16 @@ public enum Renderer {
         switch annotation {
         case let .text(text):
             TextLayout(text: text.string, fontSize: text.fontSize).draw(in: context, at: text.origin, color: text.color)
-        case let .redaction(rect, _, _):
+        case let .redaction(rect, _, width):
             guard let patch else { return }
-            drawUpright(patch, in: patchFrame(for: rect, scale: scale, imageSize: imageSize), context: context)
+            let frame = patchFrame(for: rect, scale: scale, imageSize: imageSize)
+            context.saveGState()
+            defer { context.restoreGState() }
+            context.clip(to: frame)
+            context.interpolationQuality = .none   // pixelate blocks stay hard-edged (NFR-6)
+            drawUpright(patch, in: Redaction.blockRect(for: patch, frame: frame, scale: scale,
+                                                       strength: Redaction.strength(strokeWidth: width)),
+                        context: context)
         default:
             if let shape = AnnotationGeometry.shape(for: annotation) { paint(shape, in: context) }
         }

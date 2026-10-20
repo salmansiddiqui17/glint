@@ -202,7 +202,8 @@ struct RendererTests {
             #expect(abs(exported.red - shown.red) <= 1 && abs(exported.blue - shown.blue) <= 1)
         }
         for (x, y) in [(0, 0), (50, 50), (99, 99), (13, 77)] {               // second patch, over the first
-            let exported = pixelColor(rendered, x: 80 + x, y: 60 + y), shown = pixelColor(secondPatch, x: x, y: y)
+            let exported = pixelColor(rendered, x: 80 + x, y: 60 + y)
+            let shown = shownColor(secondPatch, frameWidth: 100, x: x, y: y, strength: 12)
             #expect(abs(exported.red - shown.red) <= 1 && abs(exported.blue - shown.blue) <= 1)
         }
     }
@@ -236,7 +237,7 @@ struct RendererTests {
         // Inside the selection, the export shows each patch where the overlay puts it.
         for (x, y) in [(80.0, 60.0), (85.5, 64.0), (89.6, 69.6)] {
             let exported = pixelColor(rendered, x: Int((x - 50) * 3), y: Int((y - 40) * 3))
-            let shown = pixelColor(upperPatch, x: Int((x - 80) * 3), y: Int((y - 60) * 3))
+            let shown = shownColor(upperPatch, frameWidth: 60, x: Int((x - 80) * 3), y: Int((y - 60) * 3), strength: 12)
             #expect(exported == shown)
         }
         for (x, y) in [(60.0, 45.0), (70.0, 55.0), (79.6, 59.6)] {
@@ -244,6 +245,42 @@ struct RendererTests {
             let shown = pixelColor(lowerPatch, x: Int((x - 60) * 3), y: Int((y - 45) * 3))
             #expect(exported == shown)
         }
+    }
+
+    @Test(arguments: [CGFloat(1), 2, 3])
+    func pixelateExportsMatchAFullSizePixellate(scale: CGFloat) throws {
+        // Partial blocks on the right and bottom, and the redaction crossing the selection's edge.
+        let image = gradient(width: Int(100 * scale), height: Int(80 * scale))
+        let rect = CGRect(x: 13, y: 7, width: 41, height: 29)
+        let selection = CGRect(x: 0, y: 0, width: 50, height: 40)
+        let rendered = try #require(render(image, selection, scale: scale,
+                                           [.redaction(rect, style: .pixelate, width: 3)]))
+        let region = try #require(Renderer.render(image, scale: scale, annotations: [], patches: [:], region: rect))
+        let reference = try #require(fullSizePixellate(region, strength: 12))
+        let left = Int(13 * scale), top = Int(7 * scale)
+        for x in stride(from: 0, to: Int(37 * scale), by: 1) {
+            for y in stride(from: 0, to: Int(29 * scale), by: 1)
+            where pixelColor(rendered, x: left + x, y: top + y) != pixelColor(reference, x: x, y: y) {
+                Issue.record("export differs from the reference at \(x),\(y): \(pixelColor(rendered, x: left + x, y: top + y)) vs \(pixelColor(reference, x: x, y: y))")
+                return
+            }
+        }
+        #expect(pixelColor(rendered, x: left - 1, y: top + 5) == pixelColor(image, x: left - 1, y: top + 5))   // outside
+    }
+
+    @Test func redactionsUnderALaterOneAreCovered() {
+        let size = PixelSize(width: 200, height: 200)
+        let annotations: [Annotation] = [
+            .redaction(CGRect(x: 10, y: 10, width: 20, height: 20), style: .pixelate, width: 3),   // under the 3rd
+            .redaction(CGRect(x: 50, y: 50, width: 30, height: 30), style: .blur, width: 3),       // only overlapped
+            .line(from: .zero, to: CGPoint(x: 100, y: 100), color: green, width: 3),
+            .redaction(CGRect(x: 0, y: 0, width: 60, height: 60), style: .blur, width: 3),
+            .redaction(CGRect(x: 15, y: 15, width: 5, height: 5), style: .blur, width: 3),         // on top: shows
+            .redaction(CGRect(x: 300, y: 300, width: 5, height: 5), style: .blur, width: 3),       // off the display
+        ]
+        #expect(Renderer.coveredRedactions(in: annotations, scale: 1, imageSize: size) == [0])
+        #expect(Renderer.coveredRedactions(in: annotations, scale: 2, imageSize: size) == [0])
+        #expect(Renderer.coveredRedactions(in: [], scale: 1, imageSize: size).isEmpty)
     }
 
     @Test func knownPatchesAreUsedAsTheyAre() throws {
@@ -273,6 +310,36 @@ struct RendererTests {
         let patches = try #require(Renderer.redactionPatches(image, scale: 1, annotations: annotations,
                                                              covering: CGRect(x: 60, y: 60, width: 30, height: 30)))
         #expect(Set(patches.keys) == [1, 2])
+    }
+
+    @Test func aRedactionHiddenUnderAReusedPatchIsNotMadeAgain() throws {
+        let image = makeTestImage(width: 100, height: 100, marker: 0)
+        let region = CGRect(x: 0, y: 0, width: 100, height: 100)
+        let small = Annotation.redaction(CGRect(x: 20, y: 20, width: 20, height: 20), style: .blur, width: 3)
+        let big = Annotation.redaction(CGRect(x: 10, y: 10, width: 50, height: 50), style: .pixelate, width: 3)
+        let all = try #require(Renderer.redactionPatches(image, scale: 1, annotations: [small, big]))
+        let bigPatch = try #require(all[1])
+        // The overlay dropped the small one's patch and reuses the big one's: nothing is made.
+        let reused = try #require(Renderer.redactionPatches(image, scale: 1, annotations: [small, big],
+                                                            covering: region, reusing: [1: bigPatch]))
+        #expect(Set(reused.keys) == [1])
+        // When the big one is made here, the small one is made too: the big one is made from it.
+        let fresh = try #require(Renderer.redactionPatches(image, scale: 1, annotations: [small, big],
+                                                           covering: region))
+        #expect(Set(fresh.keys) == [0, 1])
+        // A patch made between them, reaching past the big one, still gets the small one beneath it.
+        let middle = Annotation.redaction(CGRect(x: 35, y: 35, width: 40, height: 40), style: .blur, width: 3)
+        let mixed = try #require(Renderer.redactionPatches(image, scale: 1, annotations: [small, middle, big],
+                                                           covering: region, reusing: [2: bigPatch]))
+        #expect(Set(mixed.keys) == [0, 1, 2])
+        // The export is the same either way.
+        let a = try #require(Renderer.renderSelection(image, scale: 1, annotations: [small, big], selection: region,
+                                                      standardResolution: false, patches: [1: bigPatch]))
+        let b = try #require(Renderer.renderSelection(image, scale: 1, annotations: [small, big], selection: region,
+                                                      standardResolution: false))
+        for (x, y) in [(25, 25), (30, 30), (55, 15), (80, 80)] {
+            #expect(pixelColor(a, x: x, y: y) == pixelColor(b, x: x, y: y))
+        }
     }
 
     @Test func aRedactionThatCannotBeMadeFailsTheExport() {
