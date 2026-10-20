@@ -95,7 +95,8 @@ final class OverlayChromeView: NSView {
     /// - Parameters:
     ///   - selection: top-left-origin points, or nil for no selection.
     ///   - badgeText: badge contents and its top-left-origin frame, or nil to hide it.
-    func update(selection: CGRect?, badgeText: (text: String, frame: CGRect)?) {
+    ///   - showsHandles: false for a snap highlight (FR-19), which has the border and badge only.
+    func update(selection: CGRect?, badgeText: (text: String, frame: CGRect)?, showsHandles: Bool = true) {
         CATransaction.begin()
         CATransaction.setDisableActions(true)
         defer { CATransaction.commit() }
@@ -121,7 +122,7 @@ final class OverlayChromeView: NSView {
 
         // Inset by half the 1 pt stroke so each handle's outer edge is exactly 6 pt and pixel-aligned.
         let handles = CGMutablePath()
-        for handle in Handle.allCases {
+        for handle in Handle.allCases where showsHandles {
             handles.addRect(toLayer(snapped(handle.visibleFrame(in: selection))).insetBy(dx: 0.5, dy: 0.5))
         }
         handlesLayer.path = handles

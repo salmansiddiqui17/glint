@@ -19,13 +19,14 @@ final class CaptureSession: OverlayViewDelegate {
     private var previousApp: NSRunningApplication?
     private let logger = Logger(subsystem: GlintCore.bundleIdentifier, category: "capture")
 
-    init(captures: [DisplayCapture], exporter: Exporter, settings: AppSettings, onFinish: @escaping () -> Void) {
+    init(captures: [DisplayCapture], windows: WindowSnapshot, exporter: Exporter, settings: AppSettings,
+         onFinish: @escaping () -> Void) {
         self.exporter = exporter
         self.onFinish = onFinish
         drawing = DrawingState(settings: settings)
         for capture in captures {
             let panel = OverlayPanel(frame: capture.frame)
-            let view = OverlayView(capture: capture, drawing: drawing,
+            let view = OverlayView(capture: capture, snapTargets: windows.targets(for: capture.frame), drawing: drawing,
                                    standardResolution: settings.saveAtStandardResolution)
             view.delegate = self
             panel.contentView = view
@@ -50,7 +51,7 @@ final class CaptureSession: OverlayViewDelegate {
         if views.indices.contains(index) {
             panels[index].makeKeyAndOrderFront(nil)
             panels[index].makeFirstResponder(views[index])
-            views[index].updateCursor()   // crosshair before the first mouse move (FR-21)
+            views[index].pointerDidMove()   // crosshair and snap highlight before the first mouse move (FR-19, FR-21)
         }
         observeChanges()
     }

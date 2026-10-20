@@ -19,9 +19,9 @@ protocol OverlayViewDelegate: AnyObject {
     func overlayShowColorPanel(near anchor: CGRect)
 }
 
-/// The interactive overlay for one display: mouse and keyboard editing of the selection, drawing
-/// with the tools, and the action toolbar and tools palette (FR-17 to FR-41, FR-56). Geometry and
-/// drawing state live in `SelectionEditor` and `AnnotationCanvas` (GlintCore).
+/// The interactive overlay for one display: mouse and keyboard editing of the selection, window
+/// snapping, drawing with the tools, and the action toolbar and tools palette (FR-17 to FR-41,
+/// FR-56). Geometry and drawing state live in `SelectionEditor` and `AnnotationCanvas` (GlintCore).
 final class OverlayView: NSView {
     weak var delegate: OverlayViewDelegate?
     let capture: DisplayCapture
@@ -42,17 +42,19 @@ final class OverlayView: NSView {
     /// Whether the current trackpad scroll gesture began over the text box (it then sizes the
     /// text until the gesture ends, even if the shrinking box leaves the pointer behind).
     private var scrollingText = false
+    /// The window or display highlighted under the pointer while nothing is selected (FR-19).
+    private var highlight: CGRect?
 
     private enum Gesture {
         case none, selection, drawing
     }
 
-    init(capture: DisplayCapture, drawing: DrawingState, standardResolution: Bool) {
+    init(capture: DisplayCapture, snapTargets: SnapTargets, drawing: DrawingState, standardResolution: Bool) {
         self.capture = capture
         self.drawing = drawing
         self.standardResolution = standardResolution
         let frame = CGRect(origin: .zero, size: capture.frame.size)
-        editor = SelectionEditor(bounds: frame)
+        editor = SelectionEditor(bounds: frame, snapTargets: snapTargets)
         canvas = AnnotationCanvas(bounds: frame, scale: capture.scale)
         chrome = OverlayChromeView(frame: frame, image: capture.image, scale: capture.scale)
         super.init(frame: frame)
@@ -188,13 +190,10 @@ final class OverlayView: NSView {
     }
 
     private func refresh() {
+        highlight = hoverHighlight()
         var badge: (text: String, frame: CGRect)?
         if let selection = editor.selection {
-            let size = OutputGeometry.outputPixelSize(
-                for: selection, scale: capture.scale,
-                imageSize: PixelSize(width: capture.image.width, height: capture.image.height),
-                standardResolution: standardResolution)
-            let text = OutputGeometry.badgeText(size)
+            let text = OutputGeometry.badgeText(outputSize(of: selection))
             let toolbarFrame = OverlayLayout.actionToolbarFrame(size: ActionToolbar.size, selection: selection,
                                                                 bounds: bounds)
             let paletteFrame = OverlayLayout.toolsPaletteFrame(size: ToolsPalette.size, selection: selection,
@@ -205,8 +204,13 @@ final class OverlayView: NSView {
             palette.selectionFrame = toolbar.selectionFrame
             badge = (text, OverlayLayout.badgeFrame(size: chrome.badgeSize(for: text), selection: selection,
                                                     bounds: bounds, avoiding: toolbarFrame, palette: paletteFrame))
+        } else if let highlight {
+            let text = OutputGeometry.badgeText(outputSize(of: highlight))
+            badge = (text, OverlayLayout.badgeFrame(size: chrome.badgeSize(for: text), selection: highlight,
+                                                    bounds: bounds))
         }
-        chrome.update(selection: editor.selection, badgeText: badge)
+        chrome.update(selection: editor.selection ?? highlight, badgeText: badge,
+                      showsHandles: editor.selection != nil)
         chrome.annotations.update(annotations: canvas.document.annotations, draft: canvas.draft?.annotation,
                                   text: canvas.textBox.flatMap { box in
                                       canvas.textBoxFrame.flatMap { frame in canvas.textLayout.map { (box, frame, $0) } }
@@ -218,6 +222,35 @@ final class OverlayView: NSView {
         palette.update(activeTool: drawing.tool, color: drawing.style.color, canUndo: canvas.canUndo,
                        canRedo: canvas.canRedo)
         updateCursor()
+    }
+
+    /// The exported pixel size of `rect`, which the badge shows (FR-25, FR-42).
+    private func outputSize(of rect: CGRect) -> PixelSize {
+        OutputGeometry.outputPixelSize(for: rect, scale: capture.scale,
+                                       imageSize: PixelSize(width: capture.image.width, height: capture.image.height),
+                                       standardResolution: standardResolution)
+    }
+
+    // MARK: Window snapping (FR-19)
+
+    /// The frame a click would select, while no display has a selection and the pointer is on
+    /// this one. With a selection there is no hover highlight, though a click outside it still
+    /// snaps (OQ-12).
+    private func hoverHighlight() -> CGRect? {
+        guard editor.selection == nil, delegate?.overlaySelectionOwner() == nil, let window else { return nil }
+        let viewPoint = convert(window.mouseLocationOutsideOfEventStream, from: nil)
+        // Half-open, so on the edge two displays share only one of them highlights.
+        guard bounds.contains(viewPoint) else { return nil }
+        return editor.snapHighlight(at: flip.point(viewPoint))
+    }
+
+    /// Updates the snap highlight and the cursor for the pointer's position.
+    func pointerDidMove() {
+        if hoverHighlight() != highlight {
+            refresh()
+        } else {
+            updateCursor()
+        }
     }
 
     // MARK: Coordinates (model: top-left origin; view: bottom-left origin)
@@ -244,18 +277,19 @@ final class OverlayView: NSView {
     /// Keyboard focus follows the pointer between displays (FR-17), except while a text box is
     /// being edited on another display.
     override func mouseEntered(with event: NSEvent) {
-        if let editing = delegate?.overlayTextEditor(), editing !== self { return updateCursor() }
+        if let editing = delegate?.overlayTextEditor(), editing !== self { return pointerDidMove() }
         window?.makeKeyAndOrderFront(nil)
         window?.makeFirstResponder(self)
-        updateCursor()
+        pointerDidMove()
     }
 
     override func mouseExited(with event: NSEvent) {
         chrome.showBrush(at: nil, diameter: 0)
+        pointerDidMove()
     }
 
     override func mouseMoved(with event: NSEvent) {
-        updateCursor()
+        pointerDidMove()
     }
 
     override func mouseDown(with event: NSEvent) {
@@ -294,8 +328,11 @@ final class OverlayView: NSView {
         case .drawing:
             canvas.mouseUp(at: point, constrained: event.modifierFlags.contains(.shift))
         case .selection:
-            if editor.mouseUp(at: point) {
-                delegate?.overlayDidBeginSelection(self)   // a fast flick can create the selection on release
+            // A fast flick can create the selection on release, and a click snaps (FR-19). With a
+            // tool active, a click on a display without the selection does nothing, as before:
+            // it must not move the selection away from the annotations (OQ-12).
+            if editor.mouseUp(at: point, snapping: drawing.tool == nil) {
+                delegate?.overlayDidBeginSelection(self)
             }
         case .none:
             break

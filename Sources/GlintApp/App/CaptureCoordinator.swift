@@ -24,16 +24,19 @@ final class CaptureCoordinator {
         guard ScreenRecordingPermission.isGranted else { return showOnboarding() }
         isCapturing = true
         let started = ContinuousClock.now
+        let windows = WindowSnapshot.current()   // at trigger time, like the frozen image (FR-16)
         Task {
             defer { isCapturing = false }
             do {
                 let captures = try await ScreenCapturer.captureAllDisplays()
-                let session = CaptureSession(captures: captures, exporter: exporter, settings: settings) {
+                let session = CaptureSession(captures: captures, windows: windows, exporter: exporter,
+                                             settings: settings) {
                     self.session = nil   // coordinator lives for the app's lifetime
                 }
                 self.session = session
                 session.begin()
-                logger.notice("capture ready: \(captures.count) display(s) in \(milliseconds(since: started)) ms")   // NFR-1
+                // Counts only, never window details (§7.2).
+                logger.notice("capture ready: \(captures.count) display(s), \(windows.frames.count) snap window(s) in \(milliseconds(since: started)) ms")   // NFR-1
             } catch {
                 logger.error("capture failed: \(String(describing: error), privacy: .public)")
                 if Self.isPermissionFailure(error) {
