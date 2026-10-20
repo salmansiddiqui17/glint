@@ -34,4 +34,17 @@ struct TextRecognitionTests {
         #expect(TextRecognition.joinedLines(["a", "", "  ", "b c"]) == "a\nb c")
         #expect(TextRecognition.joinedLines([]) == "")
     }
+
+    @Test func readsTextOfAnyHeight() {
+        // Vision's default skips text under 1/32 of the image height: ordinary UI text in a
+        // window-sized selection.
+        #expect(TextRecognition.request().minimumTextHeightFraction == 0)
+    }
+
+    @Test func cancellingTheCallerStopsRecognition() async {
+        let image = textImage(["Invoice number 4821"])
+        let task = Task { try await TextRecognition.recognizeText(in: image) }
+        task.cancel()
+        await #expect(throws: (any Error).self) { try await task.value }
+    }
 }
