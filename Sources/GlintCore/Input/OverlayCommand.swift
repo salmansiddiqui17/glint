@@ -19,6 +19,7 @@ public struct KeyModifiers: OptionSet, Hashable, Sendable {
 /// own ⌘ mapping) falls back to its QWERTY position, as menus do too. Accented Latin letters and
 /// dead keys never fall back, so ⌘ö on Turkish F is not ⌘X.
 public enum OverlayCommand: Equatable, Sendable {
+    case copyText            // ⌘O (FR-46)
     case copy                // ⌘C (FR-43)
     case save                // ⌘S (FR-44)
     case close               // ⌘X (FR-27)
@@ -32,7 +33,7 @@ public enum OverlayCommand: Equatable, Sendable {
 
     /// ANSI key codes, for keys that type non-Latin letters.
     private static let keyByCode: [UInt16: String] = [
-        0: "a", 1: "s", 3: "f", 6: "z", 7: "x", 8: "c", 9: "v", 11: "b", 24: "=", 27: "-",
+        0: "a", 1: "s", 3: "f", 6: "z", 7: "x", 8: "c", 9: "v", 11: "b", 24: "=", 27: "-", 31: "o",
     ]
 
     /// The command for a key press, or nil when it is not an overlay shortcut.
@@ -48,6 +49,7 @@ public enum OverlayCommand: Equatable, Sendable {
         let key = typed.unicodeScalars.allSatisfy(\.isASCII) ? typed : isNonLatin(typed) ? keyByCode[keyCode] : nil
         let shift = modifiers.contains(.shift)
         switch (key, shift) {
+        case ("o", false): return .copyText
         case ("c", false): return .copy
         case ("s", false): return .save
         case ("x", false): return .close

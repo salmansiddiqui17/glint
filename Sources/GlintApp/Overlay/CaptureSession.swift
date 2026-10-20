@@ -3,8 +3,8 @@ import GlintCore
 import os
 
 /// One capture: an overlay panel per display, a single selection across them, the tool and
-/// style they share, and teardown that releases every frozen image (FR-17, FR-18, FR-27, FR-28,
-/// FR-42).
+/// style they share, Copy Text, and teardown that releases every frozen image (FR-17, FR-18,
+/// FR-27, FR-28, FR-42, FR-46).
 @MainActor
 final class CaptureSession: OverlayViewDelegate {
     private var panels: [OverlayPanel] = []
@@ -17,6 +17,10 @@ final class CaptureSession: OverlayViewDelegate {
     /// The app that was in front before the overlay, which gets focus back afterwards, so ⌘V
     /// after a copy lands there instead of in Glint.
     private var previousApp: NSRunningApplication?
+    /// Copy Text's recognition while it runs (FR-46).
+    private var recognition: Task<Void, Never>?
+    /// How long Copy Text waits for Vision before giving up (OQ-10).
+    private static let recognitionTimeout: Duration = .seconds(10)
     private let logger = Logger(subsystem: GlintCore.bundleIdentifier, category: "capture")
 
     init(captures: [DisplayCapture], windows: WindowSnapshot, exporter: Exporter, settings: AppSettings,
@@ -111,6 +115,8 @@ final class CaptureSession: OverlayViewDelegate {
     @discardableResult
     private func tearDown() -> Bool {
         guard !panels.isEmpty else { return false }
+        recognition?.cancel()
+        recognition = nil
         observers.forEach { $0.center.removeObserver($0.token) }
         observers.removeAll()
         colorPanel.close()
@@ -155,6 +161,7 @@ final class CaptureSession: OverlayViewDelegate {
     }
 
     func overlayEscape(_ view: OverlayView) {
+        if recognition != nil { return end(reason: "cancelled") }   // Esc cancels Copy Text and the capture
         switch EscapeAction.resolve(isEditingText: overlayTextEditor() != nil, isToolActive: drawing.tool != nil) {
         case .commitText:
             overlayTextEditor()?.commitText()   // the Text tool stays selected
@@ -169,6 +176,10 @@ final class CaptureSession: OverlayViewDelegate {
         views.first { $0.isEditingText }
     }
 
+    func overlayIsRecognizingText() -> Bool {
+        recognition != nil
+    }
+
     func overlayShowColorPanel(near anchor: CGRect) {
         colorPanel.show(drawing.style.color, near: anchor) { [weak self] color in
             self?.drawing.style.color = color
@@ -176,9 +187,22 @@ final class CaptureSession: OverlayViewDelegate {
     }
 
     func overlay(_ view: OverlayView, perform action: OverlayAction) {
+        guard recognition == nil || action == .close else { return }
         switch action {
         case .close:
             end(reason: "cancelled")
+        case .copyText:
+            // Not mid-drag (⌘O with the mouse down): the selection or a shape would keep changing
+            // while the old image is read, and Esc would only end the drag.
+            guard !views.contains(where: \.isInGesture) else { return NSSound.beep() }
+            views.forEach { $0.commitText() }   // FR-42: pending text is committed first
+            guard let owner = overlaySelectionOwner() else { return NSSound.beep() }
+            // The rendered selection, so redactions are applied and the 1× option counts (FR-45).
+            guard let image = owner.renderSelection() else {
+                logger.error("text recognition render failed")
+                return NSSound.beep()
+            }
+            recognizeText(in: image, shownOn: owner)
         case .copy, .save:
             views.forEach { $0.commitText() }   // FR-42: any export commits pending text first
             let started = ContinuousClock.now
@@ -203,6 +227,50 @@ final class CaptureSession: OverlayViewDelegate {
                 }
                 finish(restoringFocus: true)
             }
+        }
+    }
+
+    /// Recognises the text in `image` while the overlay waits (FR-46). Found text is copied and
+    /// the overlay closes; otherwise `owner` shows why for 1.5 s and the overlay stays open.
+    private func recognizeText(in image: CGImage, shownOn owner: OverlayView) {
+        let started = ContinuousClock.now
+        owner.setRecognizingText(true)
+        // `owner` is held weakly: if Esc ends the capture while Vision is still busy, its frozen
+        // image is released at once (FR-27).
+        recognition = Task { [weak self, weak owner] in
+            let result = await Self.recognize(image)
+            guard let self, let owner, !Task.isCancelled else { return }   // Esc or ⌘X ended the capture
+            recognition = nil
+            owner.setRecognizingText(false)
+            switch result {
+            case let .success(text) where !text.isEmpty:
+                logger.notice("recognised text in \(milliseconds(since: started)) ms")   // never the text (§7.2)
+                tearDown()
+                exporter.copyText(text)
+                finish(restoringFocus: true)
+            case .success:
+                logger.notice("no text found in \(milliseconds(since: started)) ms")
+                owner.showMessage(String(localized: "No text found"))
+            case let .failure(error):
+                logger.error("text recognition failed: \(String(describing: error), privacy: .public)")
+                owner.showMessage(String(localized: "Couldn't read text"))
+            }
+        }
+    }
+
+    /// Vision's text in `image`, given up after `recognitionTimeout`. Cancelling the caller, or the
+    /// timeout, cancels the recognition too.
+    private nonisolated static func recognize(_ image: CGImage) async -> Result<String, any Error> {
+        let work = Task.detached(priority: .userInitiated) { try await TextRecognition.recognizeText(in: image) }
+        return await withTaskCancellationHandler {
+            do {
+                return .success(try await withTimeout(recognitionTimeout) { try await work.value })
+            } catch {
+                work.cancel()
+                return .failure(error)
+            }
+        } onCancel: {
+            work.cancel()
         }
     }
 }

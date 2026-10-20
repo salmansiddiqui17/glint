@@ -3,7 +3,7 @@ import GlintCore
 import os
 import UniformTypeIdentifiers
 
-/// Copy to the clipboard (FR-43) and Save… (FR-44).
+/// Copy to the clipboard (FR-43), Copy Text (FR-46) and Save… (FR-44).
 @MainActor
 final class Exporter {
     private let settings: AppSettings
@@ -30,6 +30,15 @@ final class Exporter {
         pasteboard.clearContents()
         pasteboard.writeObjects([item])
         logger.notice("copied \(image.width)x\(image.height) in \(milliseconds(since: started)) ms")   // NFR-3
+    }
+
+    /// Puts recognised text on the clipboard as plain text (FR-46). The log never holds the text
+    /// itself (§7.2).
+    func copyText(_ text: String) {
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        pasteboard.setString(text, forType: .string)
+        logger.notice("copied \(text.split(separator: "\n").count) line(s) of text")
     }
 
     /// Save dialog with a Format pop-up; remembers the folder. Cancel discards the capture.

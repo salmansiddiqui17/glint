@@ -7,7 +7,7 @@ struct OverlayCommandTests {
     }
 
     @Test(arguments: [
-        ("c", OverlayCommand.copy), ("s", .save), ("x", .close), ("a", .toggleFullDisplay),
+        ("o", OverlayCommand.copyText), ("c", .copy), ("s", .save), ("x", .close), ("a", .toggleFullDisplay),
         ("f", .toggleFullDisplay), ("b", .redact), ("z", .undo), ("v", .paste),
         ("=", .widerStroke), ("+", .widerStroke), ("-", .narrowerStroke),
     ])
@@ -30,6 +30,7 @@ struct OverlayCommandTests {
         #expect(match("c", [.command, .shift]) == nil)
         #expect(match("s", [.command, .shift]) == nil)
         #expect(match("-", [.command, .shift]) == nil)
+        #expect(match("o", [.command, .shift]) == nil)
     }
 
     @Test func needsCommand() {
@@ -53,6 +54,7 @@ struct OverlayCommandTests {
         #expect(match("ψ", code: 6) == .undo)        // Greek, Z key
         #expect(match("я", code: 6, [.command, .shift]) == .redo)
         #expect(match("и", code: 11) == .redact)
+        #expect(match("щ", code: 31) == .copyText)   // Russian, O key
     }
 
     @Test func accentedLatinKeysAndDeadKeysNeverFallBack() {

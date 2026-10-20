@@ -2,8 +2,8 @@ import AppKit
 import GlintCore
 
 /// Draws the frozen image, the annotations, the 50 % veil, the selection border, handles, size
-/// badge and brush preview with Core Animation layers (FR-17, FR-20, FR-25, FR-38). Takes no
-/// mouse events.
+/// badge, brush preview and short messages with Core Animation layers (FR-17, FR-20, FR-25,
+/// FR-38, FR-46). Takes no mouse events.
 ///
 /// Callers pass rectangles in display-local points with a top-left origin. They are snapped to
 /// device pixels in that space (matching the export) and then converted to this view's
@@ -22,6 +22,10 @@ final class OverlayChromeView: NSView {
     private let badgeFont = NSFont.monospacedDigitSystemFont(ofSize: 12, weight: .medium)
     /// The brush preview (FR-38): a hairline circle, white with a black dash so it shows on any colour.
     private let brushLayers = [CAShapeLayer(), CAShapeLayer()]
+    /// A short message such as "No text found" (FR-46), centred on the selection.
+    private let messageLayer = CALayer()
+    private let messageTextLayer = CATextLayer()
+    private let messageFont = NSFont.systemFont(ofSize: 13, weight: .medium)
     /// Device pixels per point, for pixel snapping.
     private let scale: CGFloat
     /// 1 pt, or 2 pt with Increase Contrast (NFR-14). Read once per capture.
@@ -76,8 +80,18 @@ final class OverlayChromeView: NSView {
         }
         brushLayers[1].lineDashPattern = [2, 2]
 
+        messageLayer.backgroundColor = NSColor.black.withAlphaComponent(0.75).cgColor
+        messageLayer.cornerRadius = 6
+        messageLayer.isHidden = true
+        messageTextLayer.font = messageFont
+        messageTextLayer.fontSize = messageFont.pointSize
+        messageTextLayer.foregroundColor = NSColor.white.cgColor
+        messageTextLayer.alignmentMode = .center
+        messageTextLayer.contentsScale = scale
+        messageLayer.addSublayer(messageTextLayer)
+
         ([imageLayer, annotations.container] + veilLayers + [borderLayer, dashLayer, handlesLayer, badgeLayer]
-            + brushLayers).forEach(root.addSublayer)
+            + brushLayers + [messageLayer]).forEach(root.addSublayer)
         update(selection: nil, badgeText: nil)
     }
 
@@ -150,6 +164,28 @@ final class OverlayChromeView: NSView {
                                             width: diameter, height: diameter), transform: nil)
         }
         brushLayers.forEach { $0.path = path }
+    }
+
+    /// Shows `text` centred on `selection` (top-left points) and kept on the display, or hides the
+    /// message when `text` is nil.
+    func showMessage(_ text: String?, over selection: CGRect?) {
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        defer { CATransaction.commit() }
+        guard let text, let selection else {
+            messageLayer.isHidden = true
+            return
+        }
+        let textSize = (text as NSString).size(withAttributes: [.font: messageFont])
+        let size = CGSize(width: ceil(textSize.width) + 20, height: ceil(textSize.height) + 12)
+        let x = min(max(selection.midX - size.width / 2, 0), bounds.width - size.width)
+        let y = min(max(selection.midY - size.height / 2, 0), bounds.height - size.height)
+        messageLayer.frame = toLayer(snapped(CGRect(x: x, y: y, width: size.width, height: size.height)))
+        messageTextLayer.string = text
+        let textHeight = ceil(messageFont.ascender - messageFont.descender)
+        messageTextLayer.frame = CGRect(x: 0, y: ((messageLayer.bounds.height - textHeight) / 2 * scale).rounded() / scale,
+                                        width: messageLayer.bounds.width, height: textHeight)
+        messageLayer.isHidden = false
     }
 
     /// Top-left model rect snapped to device pixels (same rounding as the export).

@@ -17,6 +17,9 @@ protocol OverlayViewDelegate: AnyObject {
     func overlayTextEditor() -> OverlayView?
     /// The palette's Colour button: open the colour panel next to `anchor` (screen coordinates).
     func overlayShowColorPanel(near anchor: CGRect)
+    /// Whether Copy Text is recognising text. The overlay then ignores input except Esc and ⌘X,
+    /// which cancel (FR-46).
+    func overlayIsRecognizingText() -> Bool
 }
 
 /// The interactive overlay for one display: mouse and keyboard editing of the selection, window
@@ -44,6 +47,8 @@ final class OverlayView: NSView {
     private var scrollingText = false
     /// The window or display highlighted under the pointer while nothing is selected (FR-19).
     private var highlight: CGRect?
+    /// Hides the current message after 1.5 s (FR-46).
+    private var messageTimer: Task<Void, Never>?
 
     private enum Gesture {
         case none, selection, drawing
@@ -131,6 +136,31 @@ final class OverlayView: NSView {
         OutputGeometry.dpi(scale: capture.scale, standardResolution: standardResolution)
     }
 
+    // MARK: Copy Text (FR-46)
+
+    private var isRecognizingText: Bool { delegate?.overlayIsRecognizingText() == true }
+
+    /// True from mouse-down to mouse-up, so Copy Text can wait until a drag or click is over.
+    var isInGesture: Bool { gesture != .none }
+
+    /// Shows or hides the Copy Text spinner while recognition runs.
+    func setRecognizingText(_ recognizing: Bool) {
+        toolbar.setRecognizingText(recognizing)
+    }
+
+    /// Shows `text` over the selection for 1.5 s, and has VoiceOver read it.
+    func showMessage(_ text: String) {
+        messageTimer?.cancel()
+        chrome.showMessage(text, over: editor.selection)
+        NSAccessibility.post(element: self, notification: .announcementRequested,
+                             userInfo: [.announcement: text, .priority: NSAccessibilityPriorityLevel.high.rawValue])
+        messageTimer = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(1.5))
+            guard !Task.isCancelled else { return }
+            self?.chrome.showMessage(nil, over: nil)
+        }
+    }
+
     /// The shared tool or style changed (on any display): changing tool commits text, and a new
     /// colour applies to the text being edited (FR-35).
     func drawingStateDidChange() {
@@ -168,6 +198,7 @@ final class OverlayView: NSView {
     }
 
     private func handle(_ action: PaletteAction) {
+        guard !isRecognizingText else { return }
         switch action {
         case let .tool(tool):
             drawing.tool = drawing.tool == tool ? nil : tool   // clicking the active tool deselects it
@@ -295,6 +326,7 @@ final class OverlayView: NSView {
     }
 
     override func mouseDown(with event: NSEvent) {
+        guard !isRecognizingText else { return }
         // A click on another display takes keyboard focus there, so it ends the editing (FR-35).
         if let editing = delegate?.overlayTextEditor(), editing !== self { editing.commitText() }
         pointerMoved = false
@@ -356,7 +388,7 @@ final class OverlayView: NSView {
     /// Ignored mid-drag: the shape being drawn keeps the width it started with. Momentum after the
     /// fingers lift is ignored too, so one flick can't run the width to its limit.
     override func scrollWheel(with event: NSEvent) {
-        guard event.momentumPhase.isEmpty else { return }
+        guard event.momentumPhase.isEmpty, !isRecognizingText else { return }
         let overText = canvas.textBoxFrame?.contains(modelPoint(event)) == true
         if event.phase.contains(.began) || event.phase.contains(.mayBegin) {
             scrollSteps = ScrollStepper()   // a new gesture starts from zero
@@ -431,7 +463,11 @@ final class OverlayView: NSView {
                                                  modifiers: modifiers) else {
             return super.performKeyEquivalent(with: event)
         }
+        // While recognising text, only ⌘X does anything (FR-46).
+        guard !isRecognizingText || command == .close else { return true }
         switch command {
+        case .copyText:
+            perform(.copyText)
         case .copy:
             perform(.copy)
         case .save:
@@ -466,6 +502,11 @@ final class OverlayView: NSView {
     }
 
     override func keyDown(with event: NSEvent) {
+        // While recognising text, Esc cancels it and the capture, and every other key is ignored (FR-46).
+        if isRecognizingText {
+            if event.keyCode == 53 { delegate?.overlayEscape(self) }
+            return
+        }
         // While a text box is being edited, keys type into it (FR-35); Esc arrives as cancelOperation.
         if isEditingText { return interpretKeyEvents([event]) }
         let modifiers = event.modifierFlags.intersection(Self.relevantModifiers)

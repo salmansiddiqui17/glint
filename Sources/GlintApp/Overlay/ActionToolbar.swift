@@ -2,10 +2,10 @@ import AppKit
 
 /// Actions the overlay can perform on the selection (FR-41).
 enum OverlayAction {
-    case copy, save, close
+    case copyText, copy, save, close
 }
 
-/// The horizontal action toolbar under the selection (FR-41). P1 buttons: Copy, Save, Close.
+/// The horizontal action toolbar under the selection (FR-41): Copy Text, Copy, Save, Close.
 final class ActionToolbar: NSVisualEffectView {
     static let buttonSize: CGFloat = 28
     static let spacing: CGFloat = 2
@@ -19,9 +19,12 @@ final class ActionToolbar: NSVisualEffectView {
     }
 
     private static let items = [
-        Item(action: .copy, symbol: "doc.on.doc", title: "Copy", shortcut: "⌘C or Return"),
-        Item(action: .save, symbol: "square.and.arrow.down", title: "Save", shortcut: "⌘S"),
-        Item(action: .close, symbol: "xmark", title: "Close", shortcut: "⌘X or Esc"),
+        Item(action: .copyText, symbol: "text.viewfinder", title: String(localized: "Copy Text"), shortcut: "⌘O"),
+        Item(action: .copy, symbol: "doc.on.doc", title: String(localized: "Copy"),
+             shortcut: String(localized: "⌘C or Return")),
+        Item(action: .save, symbol: "square.and.arrow.down", title: String(localized: "Save"), shortcut: "⌘S"),
+        Item(action: .close, symbol: "xmark", title: String(localized: "Close"),
+             shortcut: String(localized: "⌘X or Esc")),
     ]
 
     static var size: CGSize {
@@ -34,6 +37,10 @@ final class ActionToolbar: NSVisualEffectView {
     /// The selection in the superview's coordinates, which tooltips keep clear of.
     var selectionFrame: CGRect?
     private let tooltip = OverlayTooltip()
+    private var buttons: [ToolbarButton] = []
+    /// Shown in place of the Copy Text icon while text is being recognised (FR-46).
+    private let spinner = NSProgressIndicator()
+    private var spinnerDelay: Task<Void, Never>?
 
     init() {
         super.init(frame: CGRect(origin: .zero, size: Self.size))
@@ -46,7 +53,7 @@ final class ActionToolbar: NSVisualEffectView {
         layer?.masksToBounds = true
         setAccessibilityElement(true)   // otherwise VoiceOver skips the group (NFR-12)
         setAccessibilityRole(.toolbar)
-        setAccessibilityLabel("Capture actions")
+        setAccessibilityLabel(String(localized: "Capture actions"))
 
         for (index, item) in Self.items.enumerated() {
             let button = ToolbarButton(frame: CGRect(
@@ -68,7 +75,13 @@ final class ActionToolbar: NSVisualEffectView {
             button.target = self
             button.action = #selector(buttonPressed(_:))
             addSubview(button)
+            buttons.append(button)
         }
+        spinner.style = .spinning
+        spinner.controlSize = .small
+        spinner.isDisplayedWhenStopped = false
+        spinner.setAccessibilityLabel(String(localized: "Reading text"))
+        addSubview(spinner)
     }
 
     @available(*, unavailable)
@@ -102,6 +115,34 @@ final class ActionToolbar: NSVisualEffectView {
     @objc private func buttonPressed(_ sender: NSButton) {
         tooltip.hide()
         onAction?(Self.items[sender.tag].action)
+    }
+
+    /// While text is recognised, the Copy Text button shows a spinner instead of its icon (FR-46).
+    /// It appears only after 0.2 s, so a quick recognition doesn't flicker the button.
+    func setRecognizingText(_ recognizing: Bool) {
+        spinnerDelay?.cancel()
+        spinnerDelay = nil
+        guard recognizing else { return showSpinner(false) }
+        spinnerDelay = Task { [weak self] in
+            try? await Task.sleep(for: .milliseconds(200))
+            guard !Task.isCancelled else { return }
+            self?.showSpinner(true)
+        }
+    }
+
+    private func showSpinner(_ shown: Bool) {
+        guard let index = Self.items.firstIndex(where: { $0.action == .copyText }) else { return }
+        let button = buttons[index]
+        let item = Self.items[index]
+        button.image = shown ? nil : NSImage(systemSymbolName: item.symbol, accessibilityDescription: item.title)
+        if shown {
+            let size = spinner.fittingSize
+            spinner.frame = CGRect(x: button.frame.midX - size.width / 2, y: button.frame.midY - size.height / 2,
+                                   width: size.width, height: size.height)
+            spinner.startAnimation(nil)
+        } else {
+            spinner.stopAnimation(nil)
+        }
     }
 
     // Swallow clicks in the padding and gaps between buttons, so they never reach the overlay's
