@@ -12,9 +12,10 @@
 # codesign ambiguous), else ad-hoc. Keep using the same identity: the Screen Recording grant is
 # tied to it.
 #
-# Release builds (CI) also set:
-#   GLINT_VERSION           marketing version, e.g. 0.2.0 (CFBundleShortVersionString)
-#   GLINT_BUILD             build number (CFBundleVersion)
+# Release builds (CI) also set the following; a local build takes the first two from git:
+#   GLINT_VERSION           marketing version, e.g. 0.2.0 (CFBundleShortVersionString);
+#                           locally the latest v* tag
+#   GLINT_BUILD             build number (CFBundleVersion); locally the commit count
 #   GLINT_SECURE_TIMESTAMP  1 to sign with Apple's secure timestamp, which notarization requires
 #
 # Requires SwiftPM's Swift Build backend (Xcode 27's default; products under .../Products/<Config>):
@@ -57,6 +58,17 @@ rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$BIN/Glint" "$APP/Contents/MacOS/Glint"
 cp Resources/Info.plist "$APP/Contents/Info.plist"
+# A local build without GLINT_VERSION/GLINT_BUILD takes them from git, so About shows the version
+# it was built from (the latest v* tag, and the commit count as the build number) rather than
+# Info.plist's placeholder. Outside a git checkout, or with no tag, Info.plist's values stay.
+if [[ -z "${GLINT_VERSION:-}" ]]; then
+  if TAG="$(git describe --tags --abbrev=0 --match 'v[0-9]*' 2>/dev/null)"; then
+    GLINT_VERSION="${TAG#v}"
+  fi
+fi
+if [[ -z "${GLINT_BUILD:-}" ]]; then
+  GLINT_BUILD="$(git rev-list --count HEAD 2>/dev/null || true)"
+fi
 if [[ -n "${GLINT_VERSION:-}" ]]; then
   /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $GLINT_VERSION" "$APP/Contents/Info.plist"
 fi
