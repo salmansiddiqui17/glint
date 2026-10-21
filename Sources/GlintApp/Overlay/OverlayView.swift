@@ -152,12 +152,17 @@ final class OverlayView: NSView {
     /// True from mouse-down to mouse-up, so Copy Text can wait until a drag or click is over.
     var isInGesture: Bool { gesture != .none }
 
-    /// Shows or hides the Copy Text spinner while recognition runs.
+    /// Shows or hides the Copy Text spinner while recognition runs. Either way the message goes:
+    /// an earlier "No text found" must not sit under the spinner, and "Still reading text…" ends
+    /// with the recognition (OQ-18).
     func setRecognizingText(_ recognizing: Bool) {
         toolbar.setRecognizingText(recognizing)
+        messageTimer?.cancel()
+        messageTimer = nil
+        chrome.showMessage(nil, over: nil)
     }
 
-    /// Shows `text` over the selection for `duration`, or until another message replaces it when
+    /// Shows `text` over the selection for `duration`, or until it is replaced or hidden when
     /// `duration` is nil (OQ-18), and has VoiceOver read it.
     func showMessage(_ text: String, for duration: Duration? = .seconds(1.5)) {
         messageTimer?.cancel()

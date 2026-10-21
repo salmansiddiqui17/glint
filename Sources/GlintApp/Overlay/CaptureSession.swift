@@ -118,7 +118,10 @@ final class CaptureSession: OverlayViewDelegate {
     @discardableResult
     private func tearDown() -> Bool {
         guard !panels.isEmpty else { return false }
-        recognition?.cancel()
+        if let recognition {
+            recognition.cancel()
+            views.forEach { $0.setRecognizingText(false) }   // the spinner stops before its view is released
+        }
         recognition = nil
         recognitionNotice?.cancel()
         recognitionNotice = nil
@@ -207,6 +210,8 @@ final class CaptureSession: OverlayViewDelegate {
                 logger.error("text recognition render failed")
                 return NSSound.beep()
             }
+            // Input is ignored while recognising, but an open colour panel could still change the colour.
+            colorPanel.close()
             recognizeText(in: image, shownOn: owner)
         case .copy, .save:
             views.forEach { $0.commitText() }   // FR-42: any export commits pending text first

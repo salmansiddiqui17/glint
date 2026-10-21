@@ -88,8 +88,13 @@ final class AnnotationLayers {
         while kept < committed.count, kept < annotations.count, committed[kept].annotation == annotations[kept] {
             kept += 1
         }
+        let removed = kept < committed.count
         for stale in committed[kept...] { stale.layer.removeFromSuperlayer() }
         committed.removeSubrange(kept...)
+        // A removed redaction may have covered one that stays, whose patch was dropped. Make it
+        // again before the new layers: a new redaction's patch draws the patches below it, and
+        // a missing one would be left out, as if that redaction weren't there.
+        if removed { updateCoveredPatches() }
         for index in kept..<annotations.count {
             let entry = makeLayer(for: annotations[index], below: Array(annotations[..<index]))
             committedRoot.addSublayer(entry.layer)
