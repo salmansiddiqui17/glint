@@ -45,7 +45,7 @@ jobs:
       # Golden-image failures attach the expected, actual and diff images (NFR-17).
       - name: Upload test attachments
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: test-attachments-${{ github.run_number }}-${{ github.run_attempt }}
           path: ${{ runner.temp }}/test-attachments
@@ -63,7 +63,7 @@ jobs:
         run: scripts/package-release.sh "0.0.0-ci.${{ github.run_number }}"
 
       - name: Upload build
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: Glint-ci-${{ github.run_number }}
           path: dist/
