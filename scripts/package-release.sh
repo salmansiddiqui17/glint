@@ -27,7 +27,19 @@ STAGING="$(mktemp -d)"
 trap 'rm -rf "$STAGING"' EXIT
 ditto "$APP" "$STAGING/Glint.app"
 ln -s /Applications "$STAGING/Applications"
-hdiutil create -quiet -volname "Glint $VERSION" -srcfolder "$STAGING" -fs HFS+ -format UDZO -ov "dist/$DMG"
+# hdiutil fails now and then on CI runners (often "Resource busy"), so it gets three tries and
+# its error is shown rather than hidden.
+for attempt in 1 2 3; do
+  if hdiutil create -volname "Glint $VERSION" -srcfolder "$STAGING" -fs HFS+ -format UDZO -ov "dist/$DMG"; then
+    break
+  fi
+  if (( attempt == 3 )); then
+    echo "error: hdiutil could not create $DMG after 3 attempts." >&2
+    exit 1
+  fi
+  echo "hdiutil failed (attempt $attempt); retrying in 5 s." >&2
+  sleep 5
+done
 
 (cd dist && shasum -a 256 "$ZIP" "$DMG" > SHA256SUMS.txt)
 echo "Packaged Glint $VERSION:"
