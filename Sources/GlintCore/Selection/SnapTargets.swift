@@ -9,6 +9,9 @@ public struct SnapTargets: Equatable, Sendable {
     public let bounds: CGRect
     public let frames: [CGRect]
 
+    /// Each window is clipped to the display, and kept only when the part on this display is at
+    /// least `WindowList.minimumSnapSize` points each way, so a window that grazes the display
+    /// is not a thin strip to click there (OQ-17).
     /// - Parameters:
     ///   - windows: window frames in global display coordinates (origin at the main display's
     ///     top-left corner, y down), front to back, from `WindowList.snapFrames`.
@@ -17,7 +20,8 @@ public struct SnapTargets: Equatable, Sendable {
         bounds = CGRect(origin: .zero, size: display.size)
         frames = windows.compactMap { window in
             let clipped = window.intersection(display)
-            guard !clipped.isNull, clipped.width > 0, clipped.height > 0 else { return nil }
+            guard !clipped.isNull, clipped.width >= WindowList.minimumSnapSize,
+                  clipped.height >= WindowList.minimumSnapSize else { return nil }
             return clipped.offsetBy(dx: -display.minX, dy: -display.minY)
         }
     }
@@ -29,6 +33,8 @@ public struct SnapTargets: Equatable, Sendable {
 
     /// A display's frame in global display coordinates (top-left origin), from its AppKit frame
     /// (bottom-left origin) and the height of the main display, which both systems start from.
+    /// The main display is the one with the menu bar (`NSScreen.screens[0]`, `CGMainDisplayID()`),
+    /// not `NSScreen.main`, which is the display with the key window.
     public static func globalFrame(ofDisplay appKitFrame: CGRect, mainDisplayHeight: CGFloat) -> CGRect {
         FlippedCoordinates(height: mainDisplayHeight).rect(appKitFrame)
     }

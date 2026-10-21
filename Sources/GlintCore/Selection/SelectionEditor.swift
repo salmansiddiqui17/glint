@@ -133,6 +133,8 @@ public struct SelectionEditor: Equatable, Sendable {
             // Released within the drag threshold: a click, outside any selection.
             if snapping, let snapTargets {
                 select(snapTargets.target(at: start))
+                // The toggle takes a whole-display click back to no selection, to pick a window (OQ-16).
+                if selection == bounds { fullDisplayToggle = .active(previous: nil) }
                 lastClickSnapped = true
                 beganNewSelection = selection != nil
             }
@@ -164,7 +166,8 @@ public struct SelectionEditor: Equatable, Sendable {
         }
     }
 
-    /// Double-click inside, ⌘A or ⌘F (FR-23): select the whole display, or restore the previous rectangle.
+    /// Double-click inside, ⌘A or ⌘F (FR-23): select the whole display, or restore the previous
+    /// rectangle, which after a click on the desktop is no selection (OQ-16).
     public mutating func toggleFullDisplay() {
         guard !isDragging else { return }
         if case let .active(previous) = fullDisplayToggle, selection == bounds {

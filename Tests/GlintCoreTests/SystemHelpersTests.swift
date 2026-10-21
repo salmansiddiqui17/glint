@@ -44,6 +44,12 @@ struct WindowListTests {
         ]
         #expect(WindowList.normalWindowIDs(in: windows, excludingProcess: 99) == [1, 4])
     }
+
+    @Test func dropsNormalWindowsWithoutAnOwner() {
+        // With no owner it could be one of ours, so it is left out.
+        let ownerless: [String: Any] = [kCGWindowNumber as String: 7, kCGWindowLayer as String: 0]
+        #expect(WindowList.normalWindowIDs(in: [ownerless], excludingProcess: 99).isEmpty)
+    }
 }
 
 struct PartialResultsTests {

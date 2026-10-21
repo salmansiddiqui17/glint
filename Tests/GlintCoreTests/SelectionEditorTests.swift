@@ -72,7 +72,7 @@ struct SelectionEditorTests {
         #expect(e.selection == CGRect(x: 500, y: 500, width: 100, height: 150))
     }
 
-    @Test func clickOutsideWithoutDragKeepsSelection() {
+    @Test func clickOutsideWithoutSnapTargetsKeepsSelection() {
         let rect = CGRect(x: 100, y: 100, width: 100, height: 100)
         var e = editor(with: rect)
         e.mouseDown(at: CGPoint(x: 500, y: 500), clickCount: 1)
@@ -156,7 +156,7 @@ struct SelectionEditorTests {
         #expect(e.selection == display)
     }
 
-    @Test func doubleClickOutsideDoesNotToggle() {
+    @Test func doubleClickOutsideWithoutSnapTargetsDoesNotToggle() {
         let rect = CGRect(x: 100, y: 100, width: 200, height: 100)
         var e = editor(with: rect)
         e.mouseDown(at: CGPoint(x: 600, y: 600), clickCount: 2)
@@ -324,6 +324,50 @@ struct SelectionEditorSnappingTests {
         // A later double-click inside still toggles (FR-23).
         _ = click(&e, at: CGPoint(x: 200, y: 200), count: 2)
         #expect(e.selection == display)
+    }
+
+    @Test func theToggleTakesADesktopClickBackToNoSelection() {
+        // OQ-16: so the pointer can hover and pick a window again.
+        var e = editor()
+        _ = click(&e, at: CGPoint(x: 900, y: 700))
+        #expect(e.selection == display)
+        e.toggleFullDisplay()
+        #expect(e.selection == nil)
+        #expect(e.snapHighlight(at: CGPoint(x: 200, y: 200)) == window)
+    }
+
+    @Test func theToggleAfterAWindowClickGoesFullAndBackToTheWindow() {
+        var e = editor()
+        _ = click(&e, at: CGPoint(x: 200, y: 200))
+        e.toggleFullDisplay()
+        #expect(e.selection == display)
+        e.toggleFullDisplay()
+        #expect(e.selection == window)
+    }
+
+    @Test func doubleClickOnTheDesktopSelectsTheDisplayWithoutToggling() {
+        var e = editor()
+        let first = click(&e, at: CGPoint(x: 900, y: 700))
+        let second = click(&e, at: CGPoint(x: 900, y: 700), count: 2)
+        #expect(first)
+        #expect(second == false)
+        #expect(e.selection == display)
+        // A later double-click inside goes back to no selection (OQ-16).
+        _ = click(&e, at: CGPoint(x: 900, y: 700), count: 2)
+        #expect(e.selection == nil)
+    }
+
+    @Test func clickOnAHandleJustOutsideTheSelectionDoesNotSnap() {
+        // Hit squares reach half their size past the border: here, over the window.
+        var e = editor()
+        let manual = CGRect(x: 200, y: 200, width: 100, height: 100)
+        e.select(manual)
+        let point = CGPoint(x: manual.minX - Handle.hitSize / 2 + 1, y: manual.minY - Handle.hitSize / 2 + 1)
+        #expect(!manual.contains(point) && window.contains(point))
+        #expect(Handle.hit(point, selection: manual) == .topLeft)
+        let snapped = click(&e, at: point)
+        #expect(snapped == false)
+        #expect(e.selection == manual)
     }
 
     @Test func aClickWithSnappingOffDoesNothing() {
