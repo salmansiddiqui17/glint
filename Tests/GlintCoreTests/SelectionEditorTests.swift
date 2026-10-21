@@ -336,6 +336,17 @@ struct SelectionEditorSnappingTests {
         #expect(e.snapHighlight(at: CGPoint(x: 200, y: 200)) == window)
     }
 
+    @Test func theToggleAfterADesktopClickForgetsTheManualSelection() {
+        // OQ-16: the click replaced the manual rect, so the toggle goes to no selection, not back to it.
+        var e = editor()
+        e.select(CGRect(x: 600, y: 500, width: 100, height: 100))
+        let snapped = click(&e, at: CGPoint(x: 900, y: 300))
+        #expect(snapped)
+        #expect(e.selection == display)
+        e.toggleFullDisplay()
+        #expect(e.selection == nil)
+    }
+
     @Test func theToggleAfterAWindowClickGoesFullAndBackToTheWindow() {
         var e = editor()
         _ = click(&e, at: CGPoint(x: 200, y: 200))

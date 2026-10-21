@@ -265,7 +265,11 @@ struct RendererTests {
             let left = Int((rect.minX - selection.minX) * scale), top = Int((rect.minY - selection.minY) * scale)
             let visible = rect.intersection(selection)
             let columns = Int(visible.width * scale), rows = Int(visible.height * scale)
-            if selection.contains(rect) { #expect(columns == reference[0].count && rows == reference.count) }
+            if selection.contains(rect) { try #require(columns == reference.first?.count && rows == reference.count) }
+            // Indexing past either array would trap and end the whole run, so a size regression stops here.
+            try #require(reference.count >= rows && reference.allSatisfy { $0.count >= columns })
+            try #require(left >= 1 && rendered.count >= top + max(rows, 6)
+                         && rendered.allSatisfy { $0.count >= left + columns })
             for x in 0..<columns {
                 for y in 0..<rows where rendered[top + y][left + x] != reference[y][x] {
                     Issue.record("export in \(selection) differs from the reference at \(x),\(y): \(rendered[top + y][left + x]) vs \(reference[y][x])")

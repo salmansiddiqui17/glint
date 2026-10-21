@@ -85,6 +85,12 @@ struct SnapTargetsTests {
         #expect(targets.frames == [CGRect(x: 0, y: 100, width: 40, height: 200)])
     }
 
+    @Test func aPart39PointsWideIsDropped() {
+        // OQ-17: one point under the minimum, however tall the part is.
+        let targets = SnapTargets(windows: [CGRect(x: 1179, y: 100, width: 300, height: 200)], display: display)
+        #expect(targets.frames.isEmpty)
+    }
+
     @Test func frontmostWindowUnderThePointerWins() {
         let front = CGRect(x: 1640, y: 200, width: 200, height: 200)
         let back = CGRect(x: 1540, y: 100, width: 600, height: 500)

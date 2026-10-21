@@ -58,7 +58,7 @@ public enum Redaction {
     /// Nil (fail closed) for pixels that aren't a whole number of bytes, which it can't copy.
     static func onePixelPerBlock(_ image: CGImage, block: Int) -> CGImage? {
         let bytesPerPixel = image.bitsPerPixel / 8
-        guard block > 1, image.bitsPerPixel % 8 == 0, bytesPerPixel > 0, let space = image.colorSpace,
+        guard block > 1, image.bitsPerPixel % 8 == 0, let space = image.colorSpace,
               let data = image.dataProvider?.data, let source = CFDataGetBytePtr(data) else { return nil }
         let columns = (image.width + block - 1) / block, rows = (image.height + block - 1) / block
         var blocks = Data(count: columns * rows * bytesPerPixel)

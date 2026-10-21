@@ -17,7 +17,8 @@ public struct SelectionEditor: Equatable, Sendable {
     private var gesture: Gesture = .idle
     private var fullDisplayToggle: FullDisplayToggle = .inactive
     /// Set when the last click snapped, so a double-click on a window selects it rather than
-    /// toggling the full display at once.
+    /// toggling the full display at once; likewise a double-click that selected the whole display
+    /// (the desktop, or a window that fills it) keeps it rather than toggling straight back (OQ-16).
     private var lastClickSnapped = false
 
     private enum Gesture: Equatable, Sendable {
@@ -133,7 +134,8 @@ public struct SelectionEditor: Equatable, Sendable {
             // Released within the drag threshold: a click, outside any selection.
             if snapping, let snapTargets {
                 select(snapTargets.target(at: start))
-                // The toggle takes a whole-display click back to no selection, to pick a window (OQ-16).
+                // The toggle takes a click that selected the whole display (the desktop, or a window
+                // that fills it) back to no selection, to pick a window (OQ-16).
                 if selection == bounds { fullDisplayToggle = .active(previous: nil) }
                 lastClickSnapped = true
                 beganNewSelection = selection != nil
@@ -167,7 +169,8 @@ public struct SelectionEditor: Equatable, Sendable {
     }
 
     /// Double-click inside, ⌘A or ⌘F (FR-23): select the whole display, or restore the previous
-    /// rectangle, which after a click on the desktop is no selection (OQ-16).
+    /// rectangle, which after a click that selected the whole display (the desktop, or a window
+    /// that fills it) is no selection (OQ-16).
     public mutating func toggleFullDisplay() {
         guard !isDragging else { return }
         if case let .active(previous) = fullDisplayToggle, selection == bounds {

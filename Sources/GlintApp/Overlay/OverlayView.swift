@@ -535,6 +535,9 @@ final class OverlayView: NSView {
         case .toggleFullDisplay:
             guard !event.isARepeat else { return true }   // holding the keys must not flicker the toggle
             editor.toggleFullDisplay()
+            // Back to no selection, the tool goes too: with one, nothing highlights and a click
+            // does nothing until Esc (OQ-16). Through `drawing`, so every display refreshes.
+            if editor.selection == nil { drawing.tool = nil }
             delegate?.overlayDidBeginSelection(self)
             refresh()
         case .redact:
