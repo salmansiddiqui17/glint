@@ -32,7 +32,7 @@ A native Swift menu-bar app for Apple silicon, inspired by Lightshot's quick cap
 **Capture**
 - Global hotkey (⇧⌘9 by default, changeable in Preferences) or the menu-bar icon.
 - Freezes all displays at once, including mixed-scale and negative-origin setups, with one selection across them.
-- Click a window to select exactly that window, title bar included and shadow left out, or click the desktop for the whole display.
+- Optional window snapping, off by default: turn on **Select windows by clicking** in Preferences, then click a window to select exactly that window, title bar included and shadow left out, or click the desktop for the whole display.
 - Resize handles, a live pixel-size badge, arrow-key nudging and ⌘A for the whole display.
 - Copy as PNG, or save as PNG or JPEG. The Save panel remembers the last folder. Optionally export at standard (1×) resolution.
 - **Copy Text** (⌘O) recognises the text in the selection, on your Mac, and copies it as plain text. Redacted areas are never read. If there is no text, or it can't be read, the overlay says so and stays open. Pressing Esc or ⌘X while it reads stops it and closes the capture.
@@ -84,11 +84,11 @@ gh attestation verify Glint-*.dmg --repo salmansiddiqui17/glint   # build proven
 
 ## Usage
 
-Press **⇧⌘9**, or choose **Take Screenshot** from the menu-bar icon, then drag to select an area, or click a window to select just that window.
+Press **⇧⌘9**, or choose **Take Screenshot** from the menu-bar icon, then drag to select an area.
 
 | Action | Shortcut |
 | --- | --- |
-| Select a window, or the whole display | **Click** the window, or the desktop |
+| Select a window, or the whole display (with **Select windows by clicking** on) | **Click** the window, or the desktop |
 | Copy to the clipboard and close | **Return** or **⌘C** |
 | Copy the text in the selection and close | **⌘O** |
 | Save to a file | **⌘S** |
@@ -103,8 +103,11 @@ Press **⇧⌘9**, or choose **Take Screenshot** from the menu-bar icon, then dr
 **Esc** works in stages: it cancels the shape you're drawing or finishes the text you're typing, then
 leaves the tool, then closes the capture. While **Copy Text** is reading, Esc closes the capture at once.
 
-Before you make a selection, the window under the pointer is highlighted. Only other apps' windows
-count, not the Dock, the menu bar or floating panels. Clicking outside a selection selects the window
+Window snapping is optional and off by default: the screen dims, nothing is highlighted, and a click
+never selects a window, so you drag exactly the area you want. To select windows by clicking, turn on
+**Select windows by clicking** in Preferences; it applies from the next capture. Then, before you make
+a selection, the window under the pointer is highlighted. Only other apps' windows count, not the
+Dock, the menu bar or floating panels. Clicking outside a selection selects the window
 under the pointer instead. After a click selects the whole display, **⌘A**, **⌘F** or a double-click
 inside clears the selection, so you can pick a window again. Snapping is off while a drawing tool is
 selected.

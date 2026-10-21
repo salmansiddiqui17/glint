@@ -12,6 +12,8 @@ struct PreferencesView: View {
     private var defaultSaveFormat: ImageFormat = SettingsDefault.defaultSaveFormat
     @AppStorage(SettingsKey.redactionStyle)
     private var redactionStyle: RedactionStyle = SettingsDefault.redactionStyle
+    @AppStorage(SettingsKey.snapsToWindows)
+    private var snapsToWindows = SettingsDefault.snapsToWindows
     @State private var loginStatus = LoginItem.status
     @State private var loginItemError: String?
 
@@ -45,6 +47,12 @@ struct PreferencesView: View {
             if let loginItemError {
                 Text(loginItemError).font(.caption).foregroundStyle(.red)
             }
+            // Off by default (OQ-21); read when a capture starts, so the next one follows it (FR-19).
+            Toggle(isOn: $snapsToWindows) {
+                Text("Select windows by clicking")
+                Text("Hovering highlights the window under the pointer, and a click selects it.")
+            }
+            .help("When on, a capture highlights the window under the pointer, and a click selects the whole window. When off, drag to select an area.")
             Toggle(isOn: $saveAtStandardResolution) {
                 Text("Save at standard resolution (1×)")
                 Text("Scales Retina captures down to their on-screen size in points.")

@@ -62,7 +62,9 @@ final class OverlayView: NSView {
         case none, selection, drawing
     }
 
-    init(capture: DisplayCapture, snapTargets: SnapTargets, drawing: DrawingState, standardResolution: Bool) {
+    /// - Parameter snapTargets: nil when window snapping is off: no hover highlight, and a click
+    ///   selects nothing (OQ-21).
+    init(capture: DisplayCapture, snapTargets: SnapTargets?, drawing: DrawingState, standardResolution: Bool) {
         self.capture = capture
         self.drawing = drawing
         self.standardResolution = standardResolution

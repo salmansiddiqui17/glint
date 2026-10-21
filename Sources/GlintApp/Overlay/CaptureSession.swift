@@ -26,14 +26,15 @@ final class CaptureSession: OverlayViewDelegate {
     static var recognitionHasFinished = false
     private let logger = Logger(subsystem: GlintCore.bundleIdentifier, category: "capture")
 
-    init(captures: [DisplayCapture], windows: WindowSnapshot, exporter: Exporter, settings: AppSettings,
+    /// - Parameter windows: what a click can snap to (FR-19); nil when window snapping is off (OQ-21).
+    init(captures: [DisplayCapture], windows: WindowSnapshot?, exporter: Exporter, settings: AppSettings,
          onFinish: @escaping () -> Void) {
         self.exporter = exporter
         self.onFinish = onFinish
         drawing = DrawingState(settings: settings)
         for capture in captures {
             let panel = OverlayPanel(frame: capture.frame)
-            let view = OverlayView(capture: capture, snapTargets: windows.targets(for: capture.frame), drawing: drawing,
+            let view = OverlayView(capture: capture, snapTargets: windows?.targets(for: capture.frame), drawing: drawing,
                                    standardResolution: settings.saveAtStandardResolution)
             view.delegate = self
             panel.contentView = view

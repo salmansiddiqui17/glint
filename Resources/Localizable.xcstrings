@@ -100,6 +100,9 @@
     "Grant Access…" : {
 
     },
+    "Hovering highlights the window under the pointer, and a click selects it." : {
+
+    },
     "How the Redact tool (⌘B) hides what is under it." : {
 
     },
@@ -199,6 +202,9 @@
     "Screenshot area" : {
 
     },
+    "Select windows by clicking" : {
+
+    },
     "Starts Glint when you log in, so the shortcut always works." : {
 
     },
@@ -234,6 +240,9 @@
       }
     },
     "Welcome to Glint" : {
+
+    },
+    "When on, a capture highlights the window under the pointer, and a click selects the whole window. When off, drag to select an area." : {
 
     },
     "⌘C or Return" : {

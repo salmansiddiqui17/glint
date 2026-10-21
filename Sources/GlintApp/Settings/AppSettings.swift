@@ -9,6 +9,7 @@ enum SettingsKey {
     static let hasRequestedScreenRecording = "hasRequestedScreenRecording"
     static let lastSaveDirectory = "lastSaveDirectory"
     static let redactionStyle = "redactionStyle"
+    static let snapsToWindows = "snapsToWindows"
     static let annotationColor = "annotationColor"
     static let strokeWidth = "strokeWidth"
     static let textFontSize = "textFontSize"
@@ -20,6 +21,7 @@ enum SettingsDefault {
     static let saveAtStandardResolution = false
     static let defaultSaveFormat = ImageFormat.png
     static let redactionStyle = RedactionStyle.pixelate
+    static let snapsToWindows = false   // OQ-21
 }
 
 /// Typed access to Glint's preferences. SwiftUI views use `@AppStorage` with the same keys and
@@ -53,6 +55,13 @@ final class AppSettings {
         get { defaults.string(forKey: SettingsKey.redactionStyle).flatMap(RedactionStyle.init(rawValue:))
             ?? SettingsDefault.redactionStyle }
         set { defaults.set(newValue.rawValue, forKey: SettingsKey.redactionStyle) }
+    }
+
+    /// Whether a capture highlights the window under the pointer and a click selects it (FR-19).
+    /// Off by default, so a capture just dims and you drag your own area (OQ-21).
+    var snapsToWindows: Bool {
+        get { defaults.object(forKey: SettingsKey.snapsToWindows) as? Bool ?? SettingsDefault.snapsToWindows }
+        set { defaults.set(newValue, forKey: SettingsKey.snapsToWindows) }
     }
 
     /// The drawing colour, width and text size, kept across captures and launches (FR-37, FR-38),
