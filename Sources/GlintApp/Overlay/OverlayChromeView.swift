@@ -2,7 +2,7 @@ import AppKit
 import GlintCore
 
 /// Draws the frozen image, the annotations, the 50 % veil, the selection border, handles, size
-/// badge, brush preview and short messages with Core Animation layers (FR-17, FR-20, FR-25,
+/// badge, pointer preview and short messages with Core Animation layers (FR-17, FR-20, FR-25,
 /// FR-38, FR-46). Takes no mouse events.
 ///
 /// Callers pass rectangles in display-local points with a top-left origin. They are snapped to
@@ -20,7 +20,8 @@ final class OverlayChromeView: NSView {
     private let badgeLayer = CALayer()
     private let badgeTextLayer = CATextLayer()
     private let badgeFont = NSFont.monospacedDigitSystemFont(ofSize: 12, weight: .medium)
-    /// The brush preview (FR-38): a hairline circle, white with a black dash so it shows on any colour.
+    /// The pointer preview: the brush circle (FR-38) or the Redact bar (FR-36), a hairline in
+    /// white with a black dash so it shows on any colour.
     private let brushLayers = [CAShapeLayer(), CAShapeLayer()]
     /// A short message such as "No text found" (FR-46), centred on the selection.
     private let messageLayer = CALayer()
@@ -153,15 +154,19 @@ final class OverlayChromeView: NSView {
         }
     }
 
-    /// Shows the brush preview centred on `center` (top-left points), or hides it.
-    func showBrush(at center: CGPoint?, diameter: CGFloat) {
+    /// Shows the pointer preview, or hides it when nil: the brush circle, or the Redact bar on
+    /// whole pixels with its hairline inside them.
+    func showPointerPreview(_ preview: PointerPreview?) {
         CATransaction.begin()
         CATransaction.setDisableActions(true)
         defer { CATransaction.commit() }
-        let path = center.map { center -> CGPath in
-            let point = flip.point(center)
-            return CGPath(ellipseIn: CGRect(x: point.x - diameter / 2, y: point.y - diameter / 2,
-                                            width: diameter, height: diameter), transform: nil)
+        let path = preview.map { preview -> CGPath in
+            switch preview {
+            case .brush(let frame):
+                return CGPath(ellipseIn: toLayer(frame), transform: nil)
+            case .band(let frame):
+                return CGPath(rect: toLayer(snapped(frame)).insetBy(dx: 0.5 / scale, dy: 0.5 / scale), transform: nil)
+            }
         }
         brushLayers.forEach { $0.path = path }
     }

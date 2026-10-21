@@ -63,8 +63,12 @@ public struct AnnotationDraft: Equatable, Sendable {
                 ? .ellipse(rect, color: style.color, width: style.strokeWidth)
                 : .rectangle(rect, color: style.color, width: style.strokeWidth)
         case .redact:
+            // A click or a jiggle within the drag threshold adds nothing, with or without ⇧.
+            guard hypot(current.x - start.x, current.y - start.y) > SelectionEditor.dragThreshold else { return nil }
             // Whole pixels, so the live preview and the export obscure exactly the same pixels.
-            guard let rect = (constrained ? box() : band())?.intersection(bounds), !rect.isNull else { return nil }
+            guard let rect = (constrained ? box() : redactionBox())?.intersection(bounds), !rect.isNull else {
+                return nil
+            }
             let snapped = constrained ? squareOnPixels(rect) : PixelSnapping.aligned(rect, scale: scale)
             guard (snapped.width * scale).rounded() >= 1, (snapped.height * scale).rounded() >= 1 else { return nil }
             return .redaction(snapped, style: style.redactionStyle, width: style.strokeWidth)
@@ -86,23 +90,24 @@ public struct AnnotationDraft: Equatable, Sendable {
         return rect.width >= 1 && rect.height >= 1 ? rect : nil
     }
 
-    /// The dragged redaction box, at least a band of `redactionBandFactor` stroke widths thick
-    /// across the drag, so a sweep along a line of text covers it (FR-36, OQ-20). The band is
-    /// centred on the drag and shifted back onto the display rather than cut, unless the display
-    /// is smaller. Nil while the drag is within the drag threshold, so a click or a jiggle adds
-    /// nothing.
-    private func band() -> CGRect? {
-        let width = abs(current.x - start.x), height = abs(current.y - start.y)
-        guard max(width, height) > SelectionEditor.dragThreshold else { return nil }
+    /// The dragged redaction box with each side thinner than a band of `redactionBandFactor`
+    /// stroke widths made that thick, so a sweep along a line of text covers it (FR-36, OQ-20).
+    /// Each side grows on its own, so the box doesn't flip as the pointer crosses the diagonal.
+    /// The band is centred on the drag and shifted back onto the display rather than cut, unless
+    /// the display is smaller.
+    private func redactionBox() -> CGRect {
         let thickness = DrawingLimits.redactionBandFactor * style.strokeWidth
-        func across(_ low: CGFloat, _ high: CGFloat, _ minimum: CGFloat, _ maximum: CGFloat) -> CGFloat {
-            max(min((low + high - thickness) / 2, maximum - thickness), minimum)
+        // The band's start on one axis: centred between `a` and `b`, kept within `minimum...maximum`.
+        func across(_ a: CGFloat, _ b: CGFloat, _ minimum: CGFloat, _ maximum: CGFloat) -> CGFloat {
+            max(min((a + b - thickness) / 2, maximum - thickness), minimum)
         }
-        var rect = CGRect(x: min(start.x, current.x), y: min(start.y, current.y), width: width, height: height)
-        if width >= height, height < thickness {
+        var rect = CGRect(x: min(start.x, current.x), y: min(start.y, current.y),
+                          width: abs(current.x - start.x), height: abs(current.y - start.y))
+        if rect.height < thickness {
             rect.origin.y = across(start.y, current.y, bounds.minY, bounds.maxY)
             rect.size.height = thickness
-        } else if height > width, width < thickness {
+        }
+        if rect.width < thickness {
             rect.origin.x = across(start.x, current.x, bounds.minX, bounds.maxX)
             rect.size.width = thickness
         }

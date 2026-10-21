@@ -107,6 +107,8 @@ struct AnnotationDraftTests {
     @Test func aVerticalSweepBecomesABandAcross() {
         #expect(redaction(from: CGPoint(x: 100, y: 100), to: CGPoint(x: 101, y: 300))
                 == CGRect(x: 91.5, y: 100, width: 18, height: 200))
+        #expect(redaction(from: CGPoint(x: 101, y: 300), to: CGPoint(x: 100, y: 100))   // bottom to top
+                == CGRect(x: 91.5, y: 100, width: 18, height: 200))
     }
 
     @Test func theBandFollowsTheStrokeWidth() {
@@ -117,20 +119,33 @@ struct AnnotationDraftTests {
     @Test func aBoxAtLeastTheBandEachWayIsUnchanged() {
         #expect(redaction(from: CGPoint(x: 100, y: 100), to: CGPoint(x: 300, y: 200))
                 == CGRect(x: 100, y: 100, width: 200, height: 100))
+        #expect(redaction(from: CGPoint(x: 100, y: 100), to: CGPoint(x: 200, y: 200), width: 10)   // 60 pt band
+                == CGRect(x: 100, y: 100, width: 100, height: 100))
     }
 
-    @Test func aSmallSquareDragWidensOnlyAcrossTheDrag() {
-        // A tie counts as sideways: the height becomes the band around y 105; the width is what was dragged.
+    @Test func eachSideThinnerThanTheBandBecomesTheBand() {
         #expect(redaction(from: CGPoint(x: 100, y: 100), to: CGPoint(x: 110, y: 110))
-                == CGRect(x: 100, y: 96, width: 10, height: 18))
+                == CGRect(x: 96, y: 96, width: 18, height: 18))
+    }
+
+    @Test func nearTheDiagonalTheBandDoesNotFlip() {
+        #expect(redaction(from: CGPoint(x: 100, y: 100), to: CGPoint(x: 110, y: 111))
+                == CGRect(x: 96, y: 96.5, width: 18, height: 18))
+        #expect(redaction(from: CGPoint(x: 100, y: 100), to: CGPoint(x: 111, y: 110))
+                == CGRect(x: 96.5, y: 96, width: 18, height: 18))
+        #expect(redaction(from: CGPoint(x: 100, y: 100), to: CGPoint(x: 300, y: 290), width: 50)   // 300 pt band
+                == CGRect(x: 50, y: 45, width: 300, height: 300))
+        #expect(redaction(from: CGPoint(x: 100, y: 100), to: CGPoint(x: 290, y: 300), width: 50)
+                == CGRect(x: 45, y: 50, width: 300, height: 300))
     }
 
     @Test func aMoveWithinTheDragThresholdAddsNothing() {
         #expect(SelectionEditor.dragThreshold == 3)
         #expect(redaction(from: CGPoint(x: 100, y: 100), to: CGPoint(x: 103, y: 100)) == nil)
-        #expect(redaction(from: CGPoint(x: 100, y: 100), to: CGPoint(x: 102, y: 97)) == nil)
-        #expect(redaction(from: CGPoint(x: 100, y: 100), to: CGPoint(x: 103.5, y: 100))
-                == CGRect(x: 100, y: 91, width: 3.5, height: 18))
+        #expect(redaction(from: CGPoint(x: 100, y: 100), to: CGPoint(x: 102, y: 102)) == nil)   // 2.8 pt away
+        #expect(redaction(from: CGPoint(x: 100, y: 100), to: CGPoint(x: 102, y: 102), constrained: true) == nil)
+        #expect(redaction(from: CGPoint(x: 100, y: 100), to: CGPoint(x: 102, y: 97))           // 3.6 pt away
+                == CGRect(x: 92, y: 89.5, width: 18, height: 18))
     }
 
     @Test func aBandAtTheDisplayEdgeIsShiftedInsideNotCut() {
@@ -142,11 +157,11 @@ struct AnnotationDraftTests {
                 == CGRect(x: 982, y: 100, width: 18, height: 200))
     }
 
-    @Test func aBandWiderThanTheDisplayCoversIt() {
+    @Test func aBandThickerThanTheDisplayCoversIt() {
         var d = AnnotationDraft(tool: .redact, start: CGPoint(x: 10, y: 5), style: DrawingStyle(strokeWidth: 50),
                                 bounds: CGRect(x: 0, y: 0, width: 400, height: 200), scale: 2)
-        d.drag(to: CGPoint(x: 300, y: 5), constrained: false)                // a 300 pt band on a 200 pt display
-        #expect(d.annotation == .redaction(CGRect(x: 10, y: 0, width: 290, height: 200), style: .pixelate, width: 50))
+        d.drag(to: CGPoint(x: 390, y: 5), constrained: false)                // a 300 pt band on a 200 pt display
+        #expect(d.annotation == .redaction(CGRect(x: 10, y: 0, width: 380, height: 200), style: .pixelate, width: 50))
     }
 
     @Test func shiftStillMakesASquareRedaction() {

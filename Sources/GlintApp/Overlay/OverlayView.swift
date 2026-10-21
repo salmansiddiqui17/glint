@@ -395,7 +395,7 @@ final class OverlayView: NSView {
     }
 
     override func mouseExited(with event: NSEvent) {
-        chrome.showBrush(at: nil, diameter: 0)
+        chrome.showPointerPreview(nil)
         pointerDidMove()
     }
 
@@ -491,22 +491,22 @@ final class OverlayView: NSView {
         drawing.style.strokeWidth = DrawingLimits.strokeWidth(drawing.style.strokeWidth, steppedBy: steps)
     }
 
-    /// FR-21, FR-38: the cursor for the current gesture or what is under the pointer, and the
-    /// brush preview while a stroking tool is active. Does nothing when the pointer is over
-    /// another display, which sets its own cursor.
+    /// FR-21, FR-36, FR-38: the cursor for the current gesture or what is under the pointer, and
+    /// the brush preview while a stroking tool is active or the band's bar while Redact is.
+    /// Does nothing when the pointer is over another display, which sets its own cursor.
     func updateCursor() {
         guard let window else { return }
         let viewPoint = convert(window.mouseLocationOutsideOfEventStream, from: nil)
         guard NSMouseInRect(viewPoint, bounds, isFlipped) else {   // inclusive of the top edge
-            // A drag can leave this display without an exit event, so the brush is hidden here too.
-            return chrome.showBrush(at: nil, diameter: 0)
+            // A drag can leave this display without an exit event, so the preview is hidden here too.
+            return chrome.showPointerPreview(nil)
         }
         let point = flip.point(viewPoint)
         let overToolbars = (!toolbar.isHidden && toolbar.frame.contains(viewPoint))
             || (!palette.isHidden && palette.frame.contains(viewPoint))
         let tool = activeTool
-        let showsBrush = tool?.showsBrushPreview == true && (canvas.draft != nil || !overToolbars)
-        chrome.showBrush(at: showsBrush ? point : nil, diameter: drawing.style.strokeWidth)
+        chrome.showPointerPreview(PointerPreview(tool: tool, at: point, strokeWidth: drawing.style.strokeWidth,
+                                                 drafting: canvas.draft != nil, overToolbars: overToolbars))
 
         if editor.isCreating || canvas.draft != nil {
             NSCursor.crosshair.set()
