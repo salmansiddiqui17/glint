@@ -75,3 +75,21 @@ func pixelColor(_ image: CGImage, x: Int, y: Int) -> RGBA8 {
     }
     return RGBA8(red: Int(pixel[0]), green: Int(pixel[1]), blue: Int(pixel[2]), alpha: Int(pixel[3]))
 }
+
+/// Every pixel of `image` the way `pixelColor` reads it, drawn once: `[y][x]` from the top-left corner.
+func pixelColors(_ image: CGImage) -> [[RGBA8]] {
+    let (width, height) = (image.width, image.height)
+    var bytes = [UInt8](repeating: 0, count: width * height * 4)
+    bytes.withUnsafeMutableBytes { buffer in
+        guard let context = CGContext(data: buffer.baseAddress, width: width, height: height, bitsPerComponent: 8,
+                                      bytesPerRow: width * 4, space: CGColorSpace(name: CGColorSpace.sRGB)!,
+                                      bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return }
+        context.draw(image, in: CGRect(x: 0, y: 0, width: width, height: height))   // memory starts at the top row
+    }
+    return (0..<height).map { y in
+        (0..<width).map { x in
+            let i = (y * width + x) * 4
+            return RGBA8(red: Int(bytes[i]), green: Int(bytes[i + 1]), blue: Int(bytes[i + 2]), alpha: Int(bytes[i + 3]))
+        }
+    }
+}

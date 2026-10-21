@@ -1,4 +1,5 @@
 import CoreGraphics
+import Foundation
 import Testing
 @testable import GlintCore
 
@@ -99,6 +100,21 @@ struct RedactionTests {
         let after = pixelColor(result, x: result.width / 2, y: result.height / 2)
         #expect(abs(before.red - after.red) <= 1 && abs(before.green - after.green) <= 1
                     && abs(before.blue - after.blue) <= 1)
+    }
+
+    /// Pixels that aren't a whole number of bytes can't be copied byte by byte: no image rather
+    /// than a garbled one. (bits per component, bits per pixel, components)
+    @Test(arguments: [(4, 4, 1), (12, 12, 1), (3, 9, 3), (4, 12, 3), (5, 15, 3), (10, 30, 3)])
+    func onePixelPerBlockFailsClosedOnPixelsThatArentWholeBytes(format: (Int, Int, Int)) throws {
+        let (bitsPerComponent, bitsPerPixel, components) = format
+        let (size, bytesPerRow) = (24, (24 * bitsPerPixel + 7) / 8)
+        let provider = try #require(CGDataProvider(data: Data(repeating: 0x5A, count: bytesPerRow * size) as CFData))
+        let space = components == 1 ? CGColorSpaceCreateDeviceGray() : CGColorSpaceCreateDeviceRGB()
+        let image = try #require(CGImage(width: size, height: size, bitsPerComponent: bitsPerComponent,
+                                         bitsPerPixel: bitsPerPixel, bytesPerRow: bytesPerRow, space: space,
+                                         bitmapInfo: [], provider: provider, decode: nil, shouldInterpolate: false,
+                                         intent: .defaultIntent))
+        #expect(Redaction.onePixelPerBlock(image, block: 8) == nil)
     }
 
     @Test func deepSourcesStayDeep() throws {

@@ -247,25 +247,34 @@ struct RendererTests {
         }
     }
 
-    @Test(arguments: [CGFloat(1), 2, 3])
-    func pixelateExportsMatchAFullSizePixellate(scale: CGFloat) throws {
-        // Partial blocks on the right and bottom, and the redaction crossing the selection's edge.
+    /// Stroke widths 3, 5 and 50 are strengths 12, 20 and 200: partial blocks on the right and
+    /// bottom, and at 200 a single partial block both ways.
+    @Test(arguments: [CGFloat(1), 2, 3], [CGFloat(3), 5, 50])
+    func pixelateExportsMatchAFullSizePixellate(scale: CGFloat, strokeWidth: CGFloat) throws {
         let image = gradient(width: Int(100 * scale), height: Int(80 * scale))
+        let source = pixelColors(image)
         let rect = CGRect(x: 13, y: 7, width: 41, height: 29)
-        let selection = CGRect(x: 0, y: 0, width: 50, height: 40)
-        let rendered = try #require(render(image, selection, scale: scale,
-                                           [.redaction(rect, style: .pixelate, width: 3)]))
         let region = try #require(Renderer.render(image, scale: scale, annotations: [], patches: [:], region: rect))
-        let reference = try #require(fullSizePixellate(region, strength: 12))
-        let left = Int(13 * scale), top = Int(7 * scale)
-        for x in stride(from: 0, to: Int(37 * scale), by: 1) {
-            for y in stride(from: 0, to: Int(29 * scale), by: 1)
-            where pixelColor(rendered, x: left + x, y: top + y) != pixelColor(reference, x: x, y: y) {
-                Issue.record("export differs from the reference at \(x),\(y): \(pixelColor(rendered, x: left + x, y: top + y)) vs \(pixelColor(reference, x: x, y: y))")
-                return
+        let strength = Redaction.strength(strokeWidth: strokeWidth)
+        let reference = try pixelColors(#require(fullSizePixellate(region, strength: strength)))
+        // The redaction crossing the selection's right edge, then wholly inside a selection, so the
+        // partial last column and row are compared too.
+        for selection in [CGRect(x: 0, y: 0, width: 50, height: 40), CGRect(x: 10, y: 4, width: 50, height: 40)] {
+            let rendered = try pixelColors(#require(render(image, selection, scale: scale,
+                                                           [.redaction(rect, style: .pixelate, width: strokeWidth)])))
+            let left = Int((rect.minX - selection.minX) * scale), top = Int((rect.minY - selection.minY) * scale)
+            let visible = rect.intersection(selection)
+            let columns = Int(visible.width * scale), rows = Int(visible.height * scale)
+            if selection.contains(rect) { #expect(columns == reference[0].count && rows == reference.count) }
+            for x in 0..<columns {
+                for y in 0..<rows where rendered[top + y][left + x] != reference[y][x] {
+                    Issue.record("export in \(selection) differs from the reference at \(x),\(y): \(rendered[top + y][left + x]) vs \(reference[y][x])")
+                    return
+                }
             }
+            let outside = source[Int(rect.minY * scale) + 5][Int(rect.minX * scale) - 1]
+            #expect(rendered[top + 5][left - 1] == outside)
         }
-        #expect(pixelColor(rendered, x: left - 1, y: top + 5) == pixelColor(image, x: left - 1, y: top + 5))   // outside
     }
 
     @Test func redactionsUnderALaterOneAreCovered() {
@@ -281,6 +290,24 @@ struct RendererTests {
         #expect(Renderer.coveredRedactions(in: annotations, scale: 1, imageSize: size) == [0])
         #expect(Renderer.coveredRedactions(in: annotations, scale: 2, imageSize: size) == [0])
         #expect(Renderer.coveredRedactions(in: [], scale: 1, imageSize: size).isEmpty)
+    }
+
+    @Test func aRedactionWithTheSameFrameCoversTheEarlierOne() {
+        let rect = CGRect(x: 10, y: 10, width: 40, height: 40)
+        let annotations: [Annotation] = [.redaction(rect, style: .pixelate, width: 3),
+                                         .redaction(rect, style: .blur, width: 3)]
+        #expect(Renderer.coveredRedactions(in: annotations, scale: 1, imageSize: PixelSize(width: 200, height: 200))
+            == [0])
+    }
+
+    @Test func nestedRedactionsAreAllCoveredButTheOutermost() {
+        let annotations: [Annotation] = [
+            .redaction(CGRect(x: 20, y: 20, width: 10, height: 10), style: .blur, width: 3),
+            .redaction(CGRect(x: 15, y: 15, width: 30, height: 30), style: .pixelate, width: 3),
+            .redaction(CGRect(x: 10, y: 10, width: 60, height: 60), style: .blur, width: 3),
+        ]
+        #expect(Renderer.coveredRedactions(in: annotations, scale: 2, imageSize: PixelSize(width: 200, height: 200))
+            == [0, 1])
     }
 
     @Test func knownPatchesAreUsedAsTheyAre() throws {
