@@ -16,20 +16,31 @@ public enum Redaction {
     /// The least share of a redaction's shorter side that one block or the blur radius spans.
     /// Measured with Vision on the export (OQ-19): at 0.1 pixelate still let "hunt" be read from
     /// 96 pt text at 2×, and at 0.15 it was garbled; at 0.2 neither style left anything. Blur
-    /// alone was safe at 0.1, but one factor keeps the two styles equally strong.
+    /// alone was safe at 0.1, but one factor keeps the two styles equally strong. Growth stops at
+    /// `sizeCap` (OQ-24).
     static let sizeFactor: CGFloat = 0.2
+
+    /// The most the shorter side adds, in points: a large box over small text otherwise got
+    /// blocks so big they looked like a glitch (84 px for 502 × 212 pt at 2×). Measured with
+    /// Vision on the export (OQ-24): at 16 pt a width-3 redaction still hid 96 pt text at 1× and
+    /// 2× in both styles, with the box shifted up to 15 pt; at 12 and 14 pt pixelate let 96 pt be
+    /// read once the box shifted, and at 16 pt it read 120 pt for some shifts. Bigger text needs a
+    /// wider stroke.
+    static let sizeCap: CGFloat = 16
 
     /// Mosaic block size or blur radius, in whole pixels, for a redaction drawn with stroke width
     /// w over `frame` (display points, as `Renderer.patchFrame` gives it) at `scale` pixels per
-    /// point: max(8, 4·w, k·s), where s is the frame's shorter side in pixels and k is
-    /// `sizeFactor` (FR-36, OQ-19).
+    /// point: max(8, 4·w, min(k·s, c·scale)), where s is the frame's shorter side in pixels, k is
+    /// `sizeFactor` and c is `sizeCap` (FR-36, OQ-19, OQ-24).
     /// Large text stays legible through a fixed strength, so larger redactions are obscured more
-    /// strongly. One over a line of UI text (up to 40 px tall) keeps max(8, 4·w). Measured at the
-    /// capture's own scale, so 1× and Retina hide the same share of the content, and the 1×
+    /// strongly, up to the cap. One over a line of UI text (up to 40 px tall) keeps max(8, 4·w);
+    /// the stroke-width term isn't capped, so a wider stroke still hides bigger text. Measured at
+    /// the capture's own scale, so 1× and Retina hide the same share of the content, and the 1×
     /// export reuses the overlay's patch.
     public static func strength(strokeWidth: CGFloat, frame: CGRect, scale: CGFloat) -> CGFloat {
         let shorterSide = (min(frame.width, frame.height) * scale).rounded()
-        return CGFloat(blockSize(strength: max(8, 4 * strokeWidth, sizeFactor * shorterSide)))
+        let sizeTerm = min(sizeFactor * shorterSide, sizeCap * scale)
+        return CGFloat(blockSize(strength: max(8, 4 * strokeWidth, sizeTerm)))
     }
 
     /// A pixelate block's side in whole pixels, for `strength`. The patch is made and drawn with

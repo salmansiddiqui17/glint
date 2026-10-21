@@ -29,15 +29,20 @@ struct TextRecognitionTests {
         #expect(!text.contains("hunter2"))
     }
 
-    /// The export hides text of any size under a redaction (FR-36 AC1, OQ-19): with a fixed
-    /// strength, 96 pt text at 2× was read word for word through both styles. The redaction is
-    /// drawn tightly round the secret's line, the smallest box a user would draw.
-    /// (font size, scale, standard resolution)
+    /// The export hides text of any size under a redaction (FR-36 AC1, OQ-19, OQ-24): with a
+    /// fixed strength, 96 pt text at 2× was read word for word through both styles. The redaction
+    /// is drawn tightly round the secret's line, the smallest box a user would draw.
+    /// At the default width 3, the capped strength hides text up to 96 pt at 1× and 2×. Bigger
+    /// text needs a wider stroke; the preview bar shows it. 14 and 24 are the narrowest widths
+    /// that hide 160 and 300 pt at 2× with every wider width too, measured with Vision and with
+    /// the box shifted up to 15 pt (pixelate can leak at a narrower width, e.g. 13 and 23).
+    /// (font size, scale, standard resolution, stroke width)
     @Test(.requiresTextRecognition, arguments: [RedactionStyle.pixelate, .blur],
-          [(CGFloat(48), CGFloat(2), false), (96, 2, false), (160, 2, false), (300, 2, false), (96, 1, false),
-           (96, 2, true)])
-    func exportedRedactionsHideTextOfAnySize(style: RedactionStyle,
-                                             text: (fontSize: CGFloat, scale: CGFloat, standard: Bool)) async throws {
+          [(CGFloat(48), CGFloat(2), false, CGFloat(3)), (96, 2, false, 3), (96, 1, false, 3), (96, 2, true, 3),
+           (160, 2, false, 14), (300, 2, false, 24)])
+    func exportedRedactionsHideTextOfAnySize(
+        style: RedactionStyle, text: (fontSize: CGFloat, scale: CGFloat, standard: Bool, width: CGFloat)
+    ) async throws {
         let (fontSize, scale) = (text.fontSize, text.scale)
         let image = textImage(["Password hunter2"], fontSize: fontSize, scale: scale)
         let size = CGSize(width: CGFloat(image.width) / scale, height: CGFloat(image.height) / scale)
@@ -45,7 +50,7 @@ struct TextRecognitionTests {
         let secretStart = 20 + TextLayout(text: "Password ", fontSize: fontSize).size.width
         let secret = CGRect(x: secretStart - 4, y: 20, width: line.width - secretStart + 28, height: line.height)
         let exported = try #require(Renderer.renderSelection(
-            image, scale: scale, annotations: [.redaction(secret, style: style, width: 3)],
+            image, scale: scale, annotations: [.redaction(secret, style: style, width: text.width)],
             selection: CGRect(origin: .zero, size: size), standardResolution: text.standard))
         let read = try await TextRecognition.recognizeText(in: exported).lowercased()
         #expect(read.contains("password"))   // the rest is still read, so recognition did run

@@ -52,14 +52,32 @@ struct RedactionTests {
         #expect(Redaction.strength(strokeWidth: 3, frame: line, scale: 1) == 12)
     }
 
-    /// Larger redactions grow with their shorter side in pixels, so text of any size beneath them
-    /// can't be read (FR-36, OQ-19). At 1× and 2× they hide the same share of the content.
-    @Test func largeRedactionsGrowWithTheirShorterSide() {
+    /// Larger redactions grow with their shorter side in pixels, so headings beneath them can't be
+    /// read (FR-36, OQ-19). At 1× and 2× they hide the same share of the content.
+    @Test func largerRedactionsGrowWithTheirShorterSide() {
+        let heading = CGRect(x: 0, y: 0, width: 400, height: 70)        // 140 px tall at 2×
+        #expect(Redaction.strength(strokeWidth: 3, frame: heading, scale: 2) == 28)
+        #expect(Redaction.strength(strokeWidth: 3, frame: heading, scale: 1) == 14)
+    }
+
+    /// Growth stops at 16 pt of blocks (OQ-24), so a large box over small text isn't crudely
+    /// blocky: 32 px at 2×, whichever side is shorter.
+    @Test func largeRedactionsAreCappedInPoints() {
         let wide = CGRect(x: 0, y: 0, width: 600, height: 250), tall = CGRect(x: 0, y: 0, width: 250, height: 900)
-        #expect(Redaction.strength(strokeWidth: 3, frame: wide, scale: 2) == 100)
-        #expect(Redaction.strength(strokeWidth: 3, frame: tall, scale: 2) == 100)
-        #expect(Redaction.strength(strokeWidth: 3, frame: wide, scale: 1) == 50)
-        #expect(Redaction.strength(strokeWidth: 50, frame: wide, scale: 1) == 200)   // a wide stroke still wins
+        #expect(Redaction.strength(strokeWidth: 3, frame: wide, scale: 2) == 32)
+        #expect(Redaction.strength(strokeWidth: 3, frame: tall, scale: 2) == 32)
+        #expect(Redaction.strength(strokeWidth: 3, frame: wide, scale: 1) == 16)
+        #expect(Redaction.strength(strokeWidth: 3, frame: wide, scale: 3) == 48)
+        let reported = CGRect(x: 0, y: 0, width: 502, height: 212)       // the owner's case: 84 px uncapped
+        #expect(Redaction.strength(strokeWidth: 3, frame: reported, scale: 2) == 32)
+    }
+
+    /// The cap is on the size term only: a wider stroke still makes stronger blocks (OQ-24).
+    @Test func aWideStrokeStillExceedsTheCap() {
+        let wide = CGRect(x: 0, y: 0, width: 600, height: 250)
+        #expect(Redaction.strength(strokeWidth: 10, frame: wide, scale: 2) == 40)
+        #expect(Redaction.strength(strokeWidth: 24, frame: wide, scale: 2) == 96)
+        #expect(Redaction.strength(strokeWidth: 50, frame: wide, scale: 1) == 200)
     }
 
     /// The patch is made and drawn with whole pixels (`blockSize`), however the frame falls.
