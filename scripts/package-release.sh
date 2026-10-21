@@ -27,17 +27,19 @@ STAGING="$(mktemp -d)"
 trap 'rm -rf "$STAGING"' EXIT
 ditto "$APP" "$STAGING/Glint.app"
 ln -s /Applications "$STAGING/Applications"
-# hdiutil fails now and then on CI runners (often "Resource busy"), so it gets three tries and
-# its error is shown rather than hidden.
+# diskutil image replaces hdiutil create, which macOS 27 deprecates. The volume is APFS, which
+# every supported macOS (15+) reads. Image tools fail now and then on CI runners, so it gets
+# three tries and its error is shown.
 for attempt in 1 2 3; do
-  if hdiutil create -volname "Glint $VERSION" -srcfolder "$STAGING" -fs HFS+ -format UDZO -ov "dist/$DMG"; then
+  if diskutil image create from --format UDZO --volumeName "Glint $VERSION" "$STAGING" "dist/$DMG"; then
     break
   fi
+  rm -f "dist/$DMG"   # a failed attempt can leave a partial image behind
   if (( attempt == 3 )); then
-    echo "error: hdiutil could not create $DMG after 3 attempts." >&2
+    echo "error: diskutil could not create $DMG after 3 attempts." >&2
     exit 1
   fi
-  echo "hdiutil failed (attempt $attempt); retrying in 5 s." >&2
+  echo "diskutil failed (attempt $attempt); retrying in 5 s." >&2
   sleep 5
 done
 
