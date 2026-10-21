@@ -43,10 +43,37 @@ struct RedactionTests {
         return context.makeImage()!
     }
 
-    @Test func strengthIsAtLeastEightPixels() {
-        #expect(Redaction.strength(strokeWidth: 1) == 8)
-        #expect(Redaction.strength(strokeWidth: 3) == 12)
-        #expect(Redaction.strength(strokeWidth: 10) == 40)
+    /// A redaction over a line of 13 pt UI text keeps max(8, 4·w).
+    @Test func smallRedactionsKeepTheStrokeWidthsStrength() {
+        let line = CGRect(x: 30, y: 40, width: 300, height: 20)        // 40 px tall at 2×
+        #expect(Redaction.strength(strokeWidth: 1, frame: line, scale: 2) == 8)
+        #expect(Redaction.strength(strokeWidth: 3, frame: line, scale: 2) == 12)
+        #expect(Redaction.strength(strokeWidth: 10, frame: line, scale: 2) == 40)
+        #expect(Redaction.strength(strokeWidth: 3, frame: line, scale: 1) == 12)
+    }
+
+    /// Larger redactions grow with their shorter side in pixels, so text of any size beneath them
+    /// can't be read (FR-36, OQ-19). At 1× and 2× they hide the same share of the content.
+    @Test func largeRedactionsGrowWithTheirShorterSide() {
+        let wide = CGRect(x: 0, y: 0, width: 600, height: 250), tall = CGRect(x: 0, y: 0, width: 250, height: 900)
+        #expect(Redaction.strength(strokeWidth: 3, frame: wide, scale: 2) == 100)
+        #expect(Redaction.strength(strokeWidth: 3, frame: tall, scale: 2) == 100)
+        #expect(Redaction.strength(strokeWidth: 3, frame: wide, scale: 1) == 50)
+        #expect(Redaction.strength(strokeWidth: 50, frame: wide, scale: 1) == 200)   // a wide stroke still wins
+    }
+
+    /// The patch is made and drawn with whole pixels (`blockSize`), however the frame falls.
+    @Test func strengthIsAlwaysWholePixels() {
+        for height in stride(from: CGFloat(0.5), through: 400, by: 0.5) {
+            for scale in [CGFloat(1), 2, 3] {
+                let strength = Redaction.strength(strokeWidth: 3, frame: CGRect(x: 0, y: 0, width: 500, height: height),
+                                                  scale: scale)
+                if strength != strength.rounded() {
+                    Issue.record("\(height) pt at \(scale)× is strength \(strength)")
+                    return
+                }
+            }
+        }
     }
 
     @Test func pixelateKeepsOnePixelPerBlockOnAGridFromTheTopLeft() throws {

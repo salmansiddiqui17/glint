@@ -13,9 +13,23 @@ public enum Redaction {
         context.clearCaches()
     }
 
-    /// Mosaic block size or blur radius, in pixels: max(8, 4·w) for stroke width w.
-    public static func strength(strokeWidth: CGFloat) -> CGFloat {
-        max(8, 4 * strokeWidth)
+    /// The least share of a redaction's shorter side that one block or the blur radius spans.
+    /// Measured with Vision on the export (OQ-19): at 0.1 pixelate still let "hunt" be read from
+    /// 96 pt text at 2×, and at 0.15 it was garbled; at 0.2 neither style left anything. Blur
+    /// alone was safe at 0.1, but one factor keeps the two styles equally strong.
+    static let sizeFactor: CGFloat = 0.2
+
+    /// Mosaic block size or blur radius, in whole pixels, for a redaction drawn with stroke width
+    /// w over `frame` (display points, as `Renderer.patchFrame` gives it) at `scale` pixels per
+    /// point: max(8, 4·w, k·s), where s is the frame's shorter side in pixels and k is
+    /// `sizeFactor` (FR-36, OQ-19).
+    /// Large text stays legible through a fixed strength, so larger redactions are obscured more
+    /// strongly. One over a line of UI text (up to 40 px tall) keeps max(8, 4·w). Measured at the
+    /// capture's own scale, so 1× and Retina hide the same share of the content, and the 1×
+    /// export reuses the overlay's patch.
+    public static func strength(strokeWidth: CGFloat, frame: CGRect, scale: CGFloat) -> CGFloat {
+        let shorterSide = (min(frame.width, frame.height) * scale).rounded()
+        return CGFloat(blockSize(strength: max(8, 4 * strokeWidth, sizeFactor * shorterSide)))
     }
 
     /// A pixelate block's side in whole pixels, for `strength`. The patch is made and drawn with

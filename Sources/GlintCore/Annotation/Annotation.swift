@@ -52,7 +52,8 @@ public enum Annotation: Equatable, Sendable {
     case ellipse(CGRect, color: RGBAColor, width: CGFloat)
     case rectangle(CGRect, color: RGBAColor, width: CGFloat)
     case text(TextAnnotation)
-    /// `width` is the stroke width when it was drawn, which sets the effect's strength.
+    /// `width` is the stroke width when it was drawn, which with the rect's size sets the effect's
+    /// strength (`Redaction.strength`).
     case redaction(CGRect, style: RedactionStyle, width: CGFloat)
 }
 

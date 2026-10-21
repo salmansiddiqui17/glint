@@ -42,7 +42,7 @@ A native Swift menu-bar app for Apple silicon, inspired by Lightshot's quick cap
 - Pencil, Line, Arrow, Ellipse, Rectangle, Marker, Text and Redact, in a palette beside the selection.
 - Hold ⇧ for 45° lines, squares and circles. Scroll or press ⌘+ / ⌘− to change the stroke width.
 - Text boxes with full input-method support: dead keys, the accent menu, and Japanese and Chinese input.
-- **Redact** (⌘B) pixelates or blurs. If a redaction can't be produced, the export is refused rather than leaking the original pixels.
+- **Redact** (⌘B) pixelates or blurs. Larger redactions are obscured more strongly, so text of any size beneath them can't be read. If a redaction can't be produced, the export is refused rather than leaking the original pixels.
 - Unlimited undo and redo. Colour, width and text size are remembered.
 
 **System**

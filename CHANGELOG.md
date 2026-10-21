@@ -14,6 +14,7 @@ All notable changes to Glint are documented here. The format follows
 
 ### Changed
 - Pixelate redactions use far less memory and look the same. A redaction completely covered by a later one frees its memory until the later one is undone.
+- Larger redactions are obscured more strongly, so text of any size beneath them can't be read.
 - Glint is ready to be translated: all its text is now in one String Catalog.
 
 ## [0.1.1] - 2026-10-19

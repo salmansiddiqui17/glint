@@ -114,7 +114,9 @@ final class AnnotationLayers {
             setText(layout, color: text.color, origin: text.origin, on: layer)
             return Committed(annotation: annotation, layer: layer, patch: nil, patchLayer: nil)
         case let .redaction(rect, style, width):
-            let patchLayer = PatchLayer(frame: patchFrame(for: rect), strength: Redaction.strength(strokeWidth: width),
+            let frame = patchFrame(for: rect)
+            let patchLayer = PatchLayer(frame: frame,
+                                        strength: Redaction.strength(strokeWidth: width, frame: frame, scale: scale),
                                         scale: scale)
             let patch = Renderer.redactionPatch(image, scale: scale, below: below, patches: knownPatches(), rect: rect,
                                                 style: style, strokeWidth: width)

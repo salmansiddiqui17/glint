@@ -126,7 +126,8 @@ public enum Renderer {
         guard let region = render(image, scale: scale, annotations: annotations, patches: patches, region: rect) else {
             return nil
         }
-        return obscure(region, style, Redaction.strength(strokeWidth: strokeWidth))
+        let frame = patchFrame(for: rect, scale: scale, imageSize: size(of: image))
+        return obscure(region, style, Redaction.strength(strokeWidth: strokeWidth, frame: frame, scale: scale))
     }
 
     /// Indices of the redactions that a later redaction covers entirely: they never show, so the
@@ -170,7 +171,8 @@ public enum Renderer {
             context.clip(to: frame)
             context.interpolationQuality = .none   // pixelate blocks stay hard-edged (NFR-6)
             drawUpright(patch, in: Redaction.blockRect(for: patch, frame: frame, scale: scale,
-                                                       strength: Redaction.strength(strokeWidth: width)),
+                                                       strength: Redaction.strength(strokeWidth: width, frame: frame,
+                                                                                    scale: scale)),
                         context: context)
         default:
             if let shape = AnnotationGeometry.shape(for: annotation) { paint(shape, in: context) }

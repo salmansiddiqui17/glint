@@ -203,7 +203,8 @@ struct RendererTests {
         }
         for (x, y) in [(0, 0), (50, 50), (99, 99), (13, 77)] {               // second patch, over the first
             let exported = pixelColor(rendered, x: 80 + x, y: 60 + y)
-            let shown = shownColor(secondPatch, frameWidth: 100, x: x, y: y, strength: 12)
+            let shown = shownColor(secondPatch, frameWidth: 100, x: x, y: y,
+                                   strength: Int(Redaction.strength(strokeWidth: 3, frame: second, scale: 2)))
             #expect(abs(exported.red - shown.red) <= 1 && abs(exported.blue - shown.blue) <= 1)
         }
     }
@@ -234,10 +235,12 @@ struct RendererTests {
                                         imageSize: PixelSize(width: 300, height: 240))
         #expect(frame == CGRect(x: 80, y: 60, width: 20, height: 20))       // clipped to the display
         let upperPatch = try #require(patches[1]), lowerPatch = try #require(patches[0])
+        let strength = Int(Redaction.strength(strokeWidth: 3, frame: frame, scale: 3))
         // Inside the selection, the export shows each patch where the overlay puts it.
         for (x, y) in [(80.0, 60.0), (85.5, 64.0), (89.6, 69.6)] {
             let exported = pixelColor(rendered, x: Int((x - 50) * 3), y: Int((y - 40) * 3))
-            let shown = shownColor(upperPatch, frameWidth: 60, x: Int((x - 80) * 3), y: Int((y - 60) * 3), strength: 12)
+            let shown = shownColor(upperPatch, frameWidth: 60, x: Int((x - 80) * 3), y: Int((y - 60) * 3),
+                                   strength: strength)
             #expect(exported == shown)
         }
         for (x, y) in [(60.0, 45.0), (70.0, 55.0), (79.6, 59.6)] {
@@ -247,15 +250,15 @@ struct RendererTests {
         }
     }
 
-    /// Stroke widths 3, 5 and 50 are strengths 12, 20 and 200: partial blocks on the right and
-    /// bottom, and at 200 a single partial block both ways.
+    /// Stroke widths 3, 5 and 50 are strengths 12 (17 at 3×), 20 and 200: partial blocks on the
+    /// right and bottom, and at 200 a single partial block both ways.
     @Test(arguments: [CGFloat(1), 2, 3], [CGFloat(3), 5, 50])
     func pixelateExportsMatchAFullSizePixellate(scale: CGFloat, strokeWidth: CGFloat) throws {
         let image = gradient(width: Int(100 * scale), height: Int(80 * scale))
         let source = pixelColors(image)
         let rect = CGRect(x: 13, y: 7, width: 41, height: 29)
         let region = try #require(Renderer.render(image, scale: scale, annotations: [], patches: [:], region: rect))
-        let strength = Redaction.strength(strokeWidth: strokeWidth)
+        let strength = Redaction.strength(strokeWidth: strokeWidth, frame: rect, scale: scale)
         let reference = try pixelColors(#require(fullSizePixellate(region, strength: strength)))
         // The redaction crossing the selection's right edge, then wholly inside a selection, so the
         // partial last column and row are compared too.
