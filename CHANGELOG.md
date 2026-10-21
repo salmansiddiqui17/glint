@@ -6,6 +6,8 @@ All notable changes to Glint are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-10-21
+
 ### Added
 - **Window snapping**, optional and off by default: turn it on in Preferences with **Select windows by clicking**. With it on, before you make a selection, the window under the pointer is highlighted; click to select exactly that window, or click the desktop for the whole display. Dragging still makes a free selection, and clicking outside a selection selects the window under the pointer instead. Snapping is off while a drawing tool is selected. A window counts only if at least 40 × 40 pt of it is on that display. After a click selects the whole display, ⌘A, ⌘F or a double-click inside clears the selection, so you can pick a window again.
 - **Copy Text**, optional and off by default: turn it on in Preferences with **Copy text from screenshots**, or in the first-run window. With it on, ⌘O or the new button in the toolbar under the selection recognises the text in the selection, on your Mac, and copies it as plain text. Redacted areas are never read. If there is no text, the overlay says "No text found" and stays open; if the text can't be read, it says "Couldn't read text". Esc or ⌘X while it reads stops it and closes the capture. With it off, the toolbar is Copy, Save, Close, ⌘O does nothing, and Glint never runs text recognition.
@@ -48,6 +50,7 @@ The first public version: capture and the annotation editor.
 ### Privacy
 - Sandboxed, with no network entitlement. Nothing leaves your Mac.
 
-[Unreleased]: https://github.com/salmansiddiqui17/glint/compare/v0.1.1...HEAD
+[Unreleased]: https://github.com/salmansiddiqui17/glint/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/salmansiddiqui17/glint/compare/v0.1.1...v0.2.0
 [0.1.1]: https://github.com/salmansiddiqui17/glint/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/salmansiddiqui17/glint/releases/tag/v0.1.0
