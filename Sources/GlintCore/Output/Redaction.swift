@@ -20,13 +20,15 @@ public enum Redaction {
     /// `sizeCap` (OQ-24).
     static let sizeFactor: CGFloat = 0.2
 
-    /// The most the shorter side adds, in points: a large box over small text otherwise got
-    /// blocks so big they looked like a glitch (84 px for 502 × 212 pt at 2×). Measured with
-    /// Vision on the export (OQ-24): at 16 pt a width-3 redaction still hid 96 pt text at 1× and
-    /// 2× in both styles, with the box shifted up to 15 pt; at 12 and 14 pt pixelate let 96 pt be
-    /// read once the box shifted, and at 16 pt it read 120 pt for some shifts. Bigger text needs a
-    /// wider stroke.
-    static let sizeCap: CGFloat = 16
+    /// The largest the size term can be, in points (scaled to pixels): a large box over small text
+    /// otherwise got blocks so big they looked like a glitch (84 px for 502 × 212 pt at 2×).
+    /// Measured with Vision on the export (OQ-24), moving a width-3 box round 96 pt text by every
+    /// whole-point offset up to 15 pt on both axes (256 placements): at 16 pt pixelate let part of
+    /// the secret be read in 10 placements at 2× and 16 at 1×, almost all offset on both axes; at
+    /// 18 pt neither style let any be read, at 1× or 2×, nor for 80 or 88 pt text. Bigger text
+    /// needs a wider stroke. OCR stands in for "unreadable": a person can sometimes make out
+    /// pixelated text that Vision can't.
+    static let sizeCap: CGFloat = 18
 
     /// Mosaic block size or blur radius, in whole pixels, for a redaction drawn with stroke width
     /// w over `frame` (display points, as `Renderer.patchFrame` gives it) at `scale` pixels per

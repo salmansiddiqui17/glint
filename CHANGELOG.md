@@ -7,7 +7,7 @@ All notable changes to Glint are documented here. The format follows
 ## [Unreleased]
 
 ### Changed
-- Redact: large redactions no longer use huge, glitch-like blocks. Larger redactions are still obscured more strongly, up to a limit, so headings beneath them can't be read; for very large text, widen the stroke (⌘+) before dragging.
+- Redact: large redactions no longer use huge, glitch-like blocks. Larger redactions are still obscured more strongly, up to a limit, so headings up to about 96 pt beneath them can't be read; for larger text, widen the stroke (⌘+) before dragging.
 
 ## [0.2.0] - 2026-10-21
 

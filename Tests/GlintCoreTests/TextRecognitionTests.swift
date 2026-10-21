@@ -31,15 +31,16 @@ struct TextRecognitionTests {
 
     /// The export hides text of any size under a redaction (FR-36 AC1, OQ-19, OQ-24): with a
     /// fixed strength, 96 pt text at 2× was read word for word through both styles. The redaction
-    /// is drawn tightly round the secret's line, the smallest box a user would draw.
+    /// is drawn tightly round the secret's line, the smallest box a user would draw, and moved
+    /// left and up by each of `redactionOffsets`.
     /// At the default width 3, the capped strength hides text up to 96 pt at 1× and 2×. Bigger
-    /// text needs a wider stroke; the preview bar shows it. 14 and 24 are the narrowest widths
-    /// that hide 160 and 300 pt at 2× with every wider width too, measured with Vision and with
-    /// the box shifted up to 15 pt (pixelate can leak at a narrower width, e.g. 13 and 23).
+    /// text needs a wider stroke; the preview bar shows it. 160 and 300 pt use 16 and 28, a step
+    /// wider than the narrowest widths that hid them (14 and 24); at 16 and 28 Vision read nothing
+    /// of the secret at any whole-point offset up to 15 pt on both axes.
     /// (font size, scale, standard resolution, stroke width)
     @Test(.requiresTextRecognition, arguments: [RedactionStyle.pixelate, .blur],
           [(CGFloat(48), CGFloat(2), false, CGFloat(3)), (96, 2, false, 3), (96, 1, false, 3), (96, 2, true, 3),
-           (160, 2, false, 14), (300, 2, false, 24)])
+           (160, 2, false, 16), (300, 2, false, 28)])
     func exportedRedactionsHideTextOfAnySize(
         style: RedactionStyle, text: (fontSize: CGFloat, scale: CGFloat, standard: Bool, width: CGFloat)
     ) async throws {
@@ -48,18 +49,31 @@ struct TextRecognitionTests {
         let size = CGSize(width: CGFloat(image.width) / scale, height: CGFloat(image.height) / scale)
         let line = TextLayout(text: "Password hunter2", fontSize: fontSize).size
         let secretStart = 20 + TextLayout(text: "Password ", fontSize: fontSize).size.width
-        let secret = CGRect(x: secretStart - 4, y: 20, width: line.width - secretStart + 28, height: line.height)
-        let exported = try #require(Renderer.renderSelection(
-            image, scale: scale, annotations: [.redaction(secret, style: style, width: text.width)],
-            selection: CGRect(origin: .zero, size: size), standardResolution: text.standard))
-        let read = try await TextRecognition.recognizeText(in: exported).lowercased()
-        #expect(read.contains("password"))   // the rest is still read, so recognition did run
-        let secretWord = Array("hunter2")
-        for start in 0...(secretWord.count - 4) {
-            let fragment = String(secretWord[start..<start + 4])   // every longer fragment contains one
-            #expect(!read.contains(fragment), "read \"\(fragment)\" under the redaction: \(read)")
+        var readTheRest = false
+        for (dx, dy) in Self.redactionOffsets {
+            let secret = CGRect(x: secretStart - 4 - dx, y: 20 - dy, width: line.width - secretStart + 28,
+                                height: line.height)
+            let exported = try #require(Renderer.renderSelection(
+                image, scale: scale, annotations: [.redaction(secret, style: style, width: text.width)],
+                selection: CGRect(origin: .zero, size: size), standardResolution: text.standard))
+            let read = try await TextRecognition.recognizeText(in: exported).lowercased()
+            readTheRest = readTheRest || read.contains("password")
+            let secretWord = Array("hunter2")
+            for start in 0...(secretWord.count - 4) {
+                let fragment = String(secretWord[start..<start + 4])   // every longer fragment contains one
+                #expect(!read.contains(fragment), "read \"\(fragment)\" at offset (\(dx), \(dy)): \(read)")
+            }
         }
+        // Vision sometimes reads nothing at all from a line with a block in it, which hides the
+        // secret too; but the rest must be read somewhere, so recognition did run.
+        #expect(readTheRest)
     }
+
+    /// Where the redaction box is moved, in points left and up, so the pixelate grid falls
+    /// differently over the glyphs. At each but (0, 0), pixelate let part of 96 pt text be read
+    /// at 1× or 2× through a 16 pt cap (OQ-24): moving along both axes at once finds leaks that
+    /// moving along one misses.
+    static let redactionOffsets: [(CGFloat, CGFloat)] = [(0, 0), (11, 8), (12, 6), (3, 10), (14, 4), (11, 9)]
 
     @Test(.requiresTextRecognition) func blankImageHasNoText() async throws {
         let blank = textImage([""])
