@@ -34,7 +34,6 @@ final class CaptureCoordinator {
                 let session = CaptureSession(captures: captures, windows: windows, exporter: exporter,
                                              settings: settings) {
                     self.session = nil   // coordinator lives for the app's lifetime
-                    self.returnFreedMemory()
                 }
                 self.session = session
                 session.begin()
@@ -48,18 +47,6 @@ final class CaptureCoordinator {
                     NSSound.beep()                                  // timeout, display change: cancel quietly
                 }
             }
-        }
-    }
-
-    /// Hands the allocator's free pages back to macOS once a capture's peak (frozen images,
-    /// Vision) is gone, or the idle footprint stays near that peak (NFR-5, NFR-6). A second
-    /// later, so the session is released and its panels' close task and autorelease pools have run.
-    private func returnFreedMemory() {
-        Task {
-            try? await Task.sleep(for: .seconds(1))
-            guard session == nil, !isCapturing else { return }   // the next capture is using it
-            let freed = malloc_zone_pressure_relief(nil, 0)
-            logger.info("returned \(freed / 1024) KB to the system after a capture")
         }
     }
 
