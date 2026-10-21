@@ -107,10 +107,9 @@ Window snapping is optional and off by default: the screen dims, nothing is high
 never selects a window, so you drag exactly the area you want. To select windows by clicking, turn on
 **Select windows by clicking** in Preferences; it applies from the next capture. Then, before you make
 a selection, the window under the pointer is highlighted. Only other apps' windows count, not the
-Dock, the menu bar or floating panels. Clicking outside a selection selects the window
-under the pointer instead. After a click selects the whole display, **⌘A**, **⌘F** or a double-click
-inside clears the selection, so you can pick a window again. Snapping is off while a drawing tool is
-selected.
+Dock, the menu bar or floating panels. Clicking outside a selection selects the window under the
+pointer instead. After a click selects the whole display, **⌘A**, **⌘F** or a double-click inside
+clears the selection, so you can pick a window again. Snapping is off while a drawing tool is selected.
 
 Click a tool in the palette to select it, and click it again to put it down. With no tool selected,
 dragging moves or resizes the selection.

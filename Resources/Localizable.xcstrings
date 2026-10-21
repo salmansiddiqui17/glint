@@ -242,7 +242,7 @@
     "Welcome to Glint" : {
 
     },
-    "When on, a capture highlights the window under the pointer, and a click selects the whole window. When off, drag to select an area." : {
+    "When off, a capture just dims and you drag to select an area." : {
 
     },
     "⌘C or Return" : {

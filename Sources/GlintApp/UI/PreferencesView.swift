@@ -52,7 +52,7 @@ struct PreferencesView: View {
                 Text("Select windows by clicking")
                 Text("Hovering highlights the window under the pointer, and a click selects it.")
             }
-            .help("When on, a capture highlights the window under the pointer, and a click selects the whole window. When off, drag to select an area.")
+            .help("When off, a capture just dims and you drag to select an area.")
             Toggle(isOn: $saveAtStandardResolution) {
                 Text("Save at standard resolution (1×)")
                 Text("Scales Retina captures down to their on-screen size in points.")

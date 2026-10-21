@@ -348,6 +348,7 @@ final class OverlayView: NSView {
     /// the pointer is on this one. With a selection there is no hover highlight, though a click
     /// outside it still snaps (OQ-12).
     private func hoverHighlight() -> CGRect? {
+        guard editor.snapTargets != nil else { return nil }   // snapping off: no per-move work (OQ-21)
         guard editor.selection == nil, drawing.tool == nil, delegate?.overlaySelectionOwner() == nil,
               let window else { return nil }
         let viewPoint = convert(window.mouseLocationOutsideOfEventStream, from: nil)
@@ -559,8 +560,9 @@ final class OverlayView: NSView {
             // Ignored mid-shape, like a selection drag (SelectionEditor): the shape keeps its tool.
             guard selectionOwner?.canvas.isDrawing != true else { return true }
             editor.toggleFullDisplay()
-            // Going back to no selection also drops the tool, so hovering can pick a window again
-            // (OQ-16). Through `drawing`, so every display refreshes.
+            // Going back to no selection also drops the tool: with no selection there's nothing to
+            // draw on, and with snapping on, hovering can pick a window again (OQ-16). Through
+            // `drawing`, so every display refreshes.
             if editor.selection == nil { drawing.tool = nil }
             delegate?.overlayDidBeginSelection(self)
             refresh()

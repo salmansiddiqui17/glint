@@ -38,7 +38,7 @@ final class CaptureCoordinator {
                 self.session = session
                 session.begin()
                 // Counts only, never window details (§7.2).
-                logger.notice("capture ready: \(captures.count) display(s), \(windows?.frames.count ?? 0) snap window(s) in \(milliseconds(since: started)) ms")   // NFR-1
+                logger.notice("capture ready: \(captures.count) display(s), snap \(windows.map { "\($0.frames.count) window(s)" } ?? "off", privacy: .public) in \(milliseconds(since: started)) ms")   // NFR-1
             } catch {
                 logger.error("capture failed: \(String(describing: error), privacy: .public)")
                 if Self.isPermissionFailure(error) {
