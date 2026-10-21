@@ -32,8 +32,10 @@ A native Swift menu-bar app for Apple silicon, inspired by Lightshot's quick cap
 **Capture**
 - Global hotkey (⇧⌘9 by default, changeable in Preferences) or the menu-bar icon.
 - Freezes all displays at once, including mixed-scale and negative-origin setups, with one selection across them.
+- Click a window to select exactly that window, title bar included and shadow left out, or click the desktop for the whole display.
 - Resize handles, a live pixel-size badge, arrow-key nudging and ⌘A for the whole display.
 - Copy as PNG, or save as PNG or JPEG. The Save panel remembers the last folder. Optionally export at standard (1×) resolution.
+- **Copy Text** (⌘O) recognises the text in the selection, on your Mac, and copies it. Redacted areas stay unreadable.
 
 **Annotate**
 - Pencil, Line, Arrow, Ellipse, Rectangle, Marker, Text and Redact, in a palette beside the selection.
@@ -44,6 +46,7 @@ A native Swift menu-bar app for Apple silicon, inspired by Lightshot's quick cap
 
 **System**
 - Launch at login, a guided Screen Recording permission flow, and Preferences that apply instantly.
+- VoiceOver labels on every control. With VoiceOver on, the overlay speaks the selection's size.
 - Shortcuts work on any keyboard layout, including Russian, Greek, Dvorak – QWERTY ⌘, German and Turkish.
 
 ## Requirements
@@ -83,7 +86,9 @@ Press **⇧⌘9**, or choose **Take Screenshot** from the menu-bar icon, then dr
 
 | Action | Shortcut |
 | --- | --- |
+| Select a window | **Click** it |
 | Copy to the clipboard and close | **Return** or **⌘C** |
+| Copy the text in the selection | **⌘O** |
 | Save to a file | **⌘S** |
 | Close without saving | **Esc** or **⌘X** |
 | Select the whole display | **⌘A** (or **⌘F**) |
@@ -102,8 +107,9 @@ dragging moves or resizes the selection.
 
 Glint runs in the macOS App Sandbox, and its only file access is to locations you pick in the Save
 panel. It has **no network entitlement**: the build script refuses to produce an app that has one, so
-screenshots never leave your Mac. Its logs hold only diagnostics such as image sizes, timings and
-errors, never what you capture or type.
+screenshots never leave your Mac. **Copy Text** uses Apple's on-device Vision text recognition. Its
+logs hold only diagnostics such as image sizes, timings and errors, never what you capture, type or
+copy as text.
 
 ## Building from source
 
@@ -141,9 +147,9 @@ Sources/
   GlintApp/     AppKit and SwiftUI shell: menu bar, overlay, capture, editor views, export, Preferences
   GlintCore/    Pure logic: geometry, layout, annotations, text, rendering, redaction (unit-tested)
 Tests/
-  GlintCoreTests/
-Resources/      Info.plist, entitlements, app icon
-scripts/        build-app.sh, package-release.sh, notarize.sh, make-icon.sh
+  GlintCoreTests/   Unit tests, and Goldens/ with the renderer's golden images
+Resources/      Info.plist, entitlements, app icon, Localizable.xcstrings (the String Catalog)
+scripts/        build-app.sh, package-release.sh, notarize.sh, make-icon.sh, sync-strings.sh, smoke-launch.sh
 ```
 
 ## Releases
@@ -190,10 +196,7 @@ From then on, every tagged release is signed with the Developer ID, notarized an
 ## Roadmap
 
 - Developer ID signed, notarized releases, and a Homebrew cask
-- Window snapping: click a window to select it
-- Copy text from a selection (on-device OCR)
-- An About window, VoiceOver support and localisation
-- Golden-image tests for the renderer
+- Translations: every string is already in a String Catalog
 
 ## Contributing
 

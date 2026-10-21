@@ -6,6 +6,16 @@ All notable changes to Glint are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+- **Window snapping.** With nothing selected, the window under the pointer is highlighted; click to select exactly that window, or the desktop for the whole display. Dragging still makes a free selection, and clicking outside a selection snaps again.
+- **Copy Text** (⌘O, or the new first button in the toolbar) recognises the text in the selection on your Mac and copies it as plain text. Redactions apply first. If there is no text, the overlay says so and stays open.
+- **About Glint** in the menu: version, copyright and acknowledgements.
+- VoiceOver: the overlay speaks the selection's size once it settles, and the Colour button reads out the current colour.
+
+### Changed
+- Pixelate redactions keep one pixel per block, so a large redaction uses a fraction of the memory. Redactions hidden under a later one let go of their image until it is undone.
+- Every user-visible string is in a String Catalog, ready for translations.
+
 ## [0.1.1] - 2026-10-19
 
 ### Fixed

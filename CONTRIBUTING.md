@@ -46,6 +46,9 @@ the comment around each one explains the behaviour it refers to.
 
 - Keep each pull request focused on one change, and describe what it changes and why.
 - Add or update tests for any logic change. `swift test` must pass, and CI runs it on every pull request.
+- The renderer's golden images live in `Tests/GlintCoreTests/Goldens/`. If a change to drawing is
+  intended, re-record them with `GLINT_RECORD_GOLDENS=1 swift test`, check the new images by eye and
+  commit them. Text goldens are per macOS major version, in `Goldens/text/<version>/`.
 - The project builds in Swift 6 language mode with strict concurrency checking; please keep it free of warnings.
 - Glint must never gain a network entitlement or send data anywhere. The build script refuses to
   produce an app with one.
