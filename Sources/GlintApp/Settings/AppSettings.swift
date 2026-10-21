@@ -12,6 +12,7 @@ enum SettingsKey {
     static let annotationColor = "annotationColor"
     static let strokeWidth = "strokeWidth"
     static let textFontSize = "textFontSize"
+    static let textRecognitionWarmedUpBuild = "textRecognitionWarmedUpBuild"
 }
 
 /// Default values, shared by `AppSettings` and the SwiftUI `@AppStorage` declarations.
@@ -78,5 +79,11 @@ final class AppSettings {
     var lastSaveDirectory: URL? {
         get { defaults.string(forKey: SettingsKey.lastSaveDirectory).map { URL(fileURLWithPath: $0, isDirectory: true) } }
         set { defaults.set(newValue?.path, forKey: SettingsKey.lastSaveDirectory) }
+    }
+
+    /// The build whose text recognition warm-up last succeeded (OQ-18): see `TextRecognitionWarmUp`.
+    var textRecognitionWarmedUpBuild: String? {
+        get { defaults.string(forKey: SettingsKey.textRecognitionWarmedUpBuild) }
+        set { defaults.set(newValue, forKey: SettingsKey.textRecognitionWarmedUpBuild) }
     }
 }
