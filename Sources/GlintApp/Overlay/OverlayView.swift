@@ -49,6 +49,8 @@ final class OverlayView: NSView {
     private var highlight: CGRect?
     /// Hides the current message when its time is up (FR-46).
     private var messageTimer: Task<Void, Never>?
+    /// The selection a timed message was placed over, while it shows: it goes when that changes.
+    private var messageSelection: CGRect?
     /// The selection size VoiceOver last spoke, and the announcement waiting to be spoken (NFR-13).
     private var announcedSize: PixelSize?
     private var pendingSize: PixelSize?
@@ -167,25 +169,31 @@ final class OverlayView: NSView {
     /// with the recognition (OQ-18).
     func setRecognizingText(_ recognizing: Bool) {
         toolbar.setRecognizingText(recognizing)
-        messageTimer?.cancel()
-        messageTimer = nil
-        chrome.showMessage(nil, over: nil)
+        hideMessage()
     }
 
-    /// Shows `text` over the selection and has VoiceOver read it. It hides after `duration`, or,
-    /// when that is nil, stays until it is replaced or hidden (OQ-18).
+    /// Shows `text` over the selection and has VoiceOver read it. It hides after `duration`, or
+    /// sooner if the selection changes or a drag starts, since it would no longer sit over the
+    /// selection. When `duration` is nil it stays until it is replaced or hidden (OQ-18).
     func showMessage(_ text: String, for duration: Duration? = .seconds(1.5)) {
-        messageTimer?.cancel()
-        messageTimer = nil
+        hideMessage()
         chrome.showMessage(text, over: editor.selection)
         NSAccessibility.post(element: self, notification: .announcementRequested,
                              userInfo: [.announcement: text, .priority: NSAccessibilityPriorityLevel.high.rawValue])
         guard let duration else { return }
+        messageSelection = editor.selection
         messageTimer = Task { [weak self] in
             try? await Task.sleep(for: duration)
             guard !Task.isCancelled else { return }
-            self?.chrome.showMessage(nil, over: nil)
+            self?.hideMessage()
         }
+    }
+
+    private func hideMessage() {
+        messageTimer?.cancel()
+        messageTimer = nil
+        messageSelection = nil
+        chrome.showMessage(nil, over: nil)
     }
 
     /// The shared tool or style changed (on any display): changing tool commits text, and a new
@@ -248,6 +256,8 @@ final class OverlayView: NSView {
     }
 
     private func refresh() {
+        // A timed message sits where the selection was; it doesn't follow a nudge, a drag or ⌘A.
+        if let messageSelection, editor.selection != messageSelection || gesture != .none { hideMessage() }
         highlight = hoverHighlight()
         var badge: (text: String, frame: CGRect)?
         if let selection = editor.selection {

@@ -81,6 +81,20 @@ struct RedactionTests {
         #expect(Redaction.blockRect(for: blurred, frame: frame, scale: 2, strength: 8) == frame)
     }
 
+    /// Stroke widths are whole points today, but a fractional strength must not leave an
+    /// unredacted strip along the right and bottom edges: the patch and where it is drawn use the
+    /// same whole-pixel block (FR-36).
+    @Test(arguments: [CGFloat(8.4), 8.5, 8.6, 12.6])
+    func aFractionalStrengthStillCoversTheWholeFrame(strength: CGFloat) throws {
+        let frame = CGRect(x: 10, y: 20, width: 39, height: 38)       // 39 × 38 px at 1×
+        let source = gradient(width: 39, height: 38)
+        for patch in [try #require(Redaction.obscure(source, style: .pixelate, strength: strength)),
+                      try #require(Redaction.solid(source, style: .pixelate, strength: strength))] {
+            let drawn = Redaction.blockRect(for: patch, frame: frame, scale: 1, strength: strength)
+            #expect(drawn.contains(frame), "\(drawn) leaves part of \(frame) uncovered")
+        }
+    }
+
     @Test func blurRemovesTheStripesAndStaysOpaque() throws {
         let result = try #require(Redaction.obscure(stripes(width: 40, height: 40), style: .blur, strength: 8))
         #expect(result.width == 40 && result.height == 40)

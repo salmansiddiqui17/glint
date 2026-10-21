@@ -1,6 +1,17 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "%@ (%@)" : {
+      "comment" : "Toolbar tooltip: a button's name, then its keyboard shortcut",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ (%2$@)"
+          }
+        }
+      }
+    },
     "%lld by %lld" : {
       "localizations" : {
         "en" : {

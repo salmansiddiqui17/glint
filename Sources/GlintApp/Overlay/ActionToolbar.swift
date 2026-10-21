@@ -64,7 +64,10 @@ final class ActionToolbar: NSVisualEffectView {
             button.isBordered = false
             button.contentTintColor = .white
             // System tooltips draw below the screen-saver-level overlay, so the toolbar shows its own.
-            let help = "\(item.title) (\(item.shortcut))"
+            // A format key, so a translation can reorder or restyle it (NFR-15).
+            let help = String(format: String(localized: "%@ (%@)",
+                                             comment: "Toolbar tooltip: a button's name, then its keyboard shortcut"),
+                              item.title, item.shortcut)
             button.setAccessibilityLabel(item.title)
             button.setAccessibilityHelp(help)
             button.onHover = { [weak self, weak button] hovering in

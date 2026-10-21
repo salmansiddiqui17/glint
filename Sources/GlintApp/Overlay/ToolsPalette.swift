@@ -76,7 +76,12 @@ final class ToolsPalette: NSVisualEffectView {
             button.isBordered = false
             button.contentTintColor = .white
             // System tooltips draw below the screen-saver-level overlay, so the palette shows its own.
-            let help = item.shortcut.map { "\(item.title) (\($0))" } ?? item.title
+            // A format key, so a translation can reorder or restyle it (NFR-15).
+            let help = item.shortcut.map {
+                String(format: String(localized: "%@ (%@)",
+                                      comment: "Toolbar tooltip: a button's name, then its keyboard shortcut"),
+                       item.title, $0)
+            } ?? item.title
             button.setAccessibilityLabel(item.title)
             button.setAccessibilityHelp(help)
             button.onHover = { [weak self, weak button] hovering in
