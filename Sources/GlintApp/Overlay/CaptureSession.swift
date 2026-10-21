@@ -19,11 +19,11 @@ final class CaptureSession: OverlayViewDelegate {
     private var previousApp: NSRunningApplication?
     /// Copy Text's recognition while it runs (FR-46).
     private var recognition: Task<Void, Never>?
-    /// Says "Still reading text…" if the recognition is slow (OQ-18).
+    /// Says "Preparing text recognition…" if the first recognition is slow (OQ-18).
     private var recognitionNotice: Task<Void, Never>?
-    /// Whether a recognition has finished since Glint launched, so Vision's text model is ready
-    /// and later ones keep the shorter limit (OQ-18).
-    private static var recognitionHasFinished = false
+    /// Whether a recognition, or the launch warm-up, has finished since Glint launched, so Vision's
+    /// text model is ready and later ones keep the shorter limit (OQ-18).
+    static var recognitionHasFinished = false
     private let logger = Logger(subsystem: GlintCore.bundleIdentifier, category: "capture")
 
     init(captures: [DisplayCapture], windows: WindowSnapshot, exporter: Exporter, settings: AppSettings,
@@ -243,7 +243,8 @@ final class CaptureSession: OverlayViewDelegate {
 
     /// Recognises the text in `image` while the overlay waits (FR-46). Found text is copied and
     /// the overlay closes; otherwise `owner` shows why for 1.5 s and the overlay stays open.
-    /// The first recognition since Glint launched may run longer, and says so while it does (OQ-18).
+    /// The first recognition since Glint launched may run longer, and says so while it does; if it
+    /// times out, macOS may still be preparing the text model, and the message says so (OQ-18).
     private func recognizeText(in image: CGImage, shownOn owner: OverlayView) {
         let started = ContinuousClock.now
         let isFirst = !Self.recognitionHasFinished
@@ -255,7 +256,7 @@ final class CaptureSession: OverlayViewDelegate {
             recognitionNotice = Task { [weak owner] in
                 try? await Task.sleep(for: delay)
                 guard !Task.isCancelled else { return }
-                owner?.showMessage(String(localized: "Still reading text… Esc cancels"), for: nil)
+                owner?.showMessage(String(localized: "Preparing text recognition… Esc cancels"), for: nil)
             }
         }
         recognition = Task { [weak self, weak owner] in
@@ -278,7 +279,14 @@ final class CaptureSession: OverlayViewDelegate {
                 owner.showMessage(String(localized: "No text found"))
             case let .failure(error):
                 logger.error("text recognition failed: \(String(describing: error), privacy: .public)")
-                owner.showMessage(String(localized: "Couldn't read text"))
+                switch TextRecognitionLimits.failure(isFirstSinceLaunch: isFirst, error: error) {
+                case .couldNotRead:
+                    owner.showMessage(String(localized: "Couldn't read text"))
+                case .stillGettingReady:
+                    // Longer than the usual 1.5 s: it is a sentence to read and act on.
+                    owner.showMessage(String(localized: "Text recognition is still getting ready. Try again in a moment."),
+                                      for: .seconds(3))
+                }
             }
         }
     }

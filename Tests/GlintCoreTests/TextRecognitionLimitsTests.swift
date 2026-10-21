@@ -17,4 +17,16 @@ struct TextRecognitionLimitsTests {
         let delay = try #require(TextRecognitionLimits.noticeDelay(isFirstSinceLaunch: true))
         #expect(delay < TextRecognitionLimits.timeout(isFirstSinceLaunch: true))
     }
+
+    /// macOS may still be preparing Vision's text model, so the user is told to try again (OQ-18).
+    @Test func aFirstAttemptThatTimesOutIsStillGettingReady() {
+        #expect(TextRecognitionLimits.failure(isFirstSinceLaunch: true, error: TimeoutError()) == .stillGettingReady)
+    }
+
+    @Test func otherFailuresCouldNotReadTheText() {
+        struct VisionFailure: Error {}
+        #expect(TextRecognitionLimits.failure(isFirstSinceLaunch: true, error: VisionFailure()) == .couldNotRead)
+        #expect(TextRecognitionLimits.failure(isFirstSinceLaunch: false, error: TimeoutError()) == .couldNotRead)
+        #expect(TextRecognitionLimits.failure(isFirstSinceLaunch: false, error: VisionFailure()) == .couldNotRead)
+    }
 }

@@ -165,7 +165,7 @@ final class OverlayView: NSView {
     var isInGesture: Bool { gesture != .none }
 
     /// Shows or hides the Copy Text spinner while recognition runs. Either way the message goes:
-    /// an earlier "No text found" must not sit under the spinner, and "Still reading text…" ends
+    /// an earlier "No text found" must not sit under the spinner, and "Preparing text recognition…" ends
     /// with the recognition (OQ-18).
     func setRecognizingText(_ recognizing: Bool) {
         toolbar.setRecognizingText(recognizing)

@@ -148,6 +148,9 @@
     "Preferences…" : {
 
     },
+    "Preparing text recognition… Esc cancels" : {
+
+    },
     "Press a new shortcut, or clear it to use the menu only." : {
 
     },
@@ -202,13 +205,13 @@
     "Starts Glint when you log in." : {
 
     },
-    "Still reading text… Esc cancels" : {
-
-    },
     "Take Screenshot" : {
 
     },
     "Text" : {
+
+    },
+    "Text recognition is still getting ready. Try again in a moment." : {
 
     },
     "The format the Save dialog starts with." : {
