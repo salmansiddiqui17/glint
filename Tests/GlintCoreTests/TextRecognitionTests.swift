@@ -5,18 +5,7 @@ import Testing
 struct TextRecognitionTests {
     /// Black text on white, `fontSize` points at `scale`, one string per line.
     func textImage(_ lines: [String], fontSize: CGFloat = 32, scale: CGFloat = 2) -> CGImage {
-        let layout = TextLayout(text: lines.joined(separator: "\n"), fontSize: fontSize)
-        let size = CGSize(width: layout.size.width + 40, height: layout.size.height + 40)
-        let context = CGContext(data: nil, width: Int(size.width * scale), height: Int(size.height * scale),
-                                bitsPerComponent: 8, bytesPerRow: 0, space: CGColorSpace(name: CGColorSpace.sRGB)!,
-                                bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue)!
-        context.setFillColor(CGColor(gray: 1, alpha: 1))
-        context.fill(CGRect(x: 0, y: 0, width: context.width, height: context.height))
-        // Top-left-origin points, as the renderer draws annotations.
-        context.translateBy(x: 0, y: CGFloat(context.height))
-        context.scaleBy(x: scale, y: -scale)
-        layout.draw(in: context, at: CGPoint(x: 20, y: 20), color: RGBAColor(red: 0, green: 0, blue: 0, alpha: 1))
-        return context.makeImage()!
+        TextRecognition.image(of: lines.joined(separator: "\n"), fontSize: fontSize, scale: scale)!
     }
 
     @Test func recognisesLinesInReadingOrder() async throws {

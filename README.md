@@ -36,7 +36,7 @@ A native Swift menu-bar app for Apple silicon, inspired by Lightshot's quick cap
 - Resize handles, a live pixel-size badge, arrow-key nudging and ⌘A for the whole display.
 - Copy as PNG, or save as PNG or JPEG. The Save panel remembers the last folder. Optionally export at standard (1×) resolution.
 - **Copy Text** (⌘O) recognises the text in the selection, on your Mac, and copies it as plain text. Redacted areas are never read. If there is no text, or it can't be read, the overlay says so and stays open. Pressing Esc or ⌘X while it reads stops it and closes the capture.
-- After you install or update Glint, it prepares text recognition in the background, so your first **Copy Text** is quick. If you use it straight away, it may take up to about a minute, and says so after 10 seconds.
+- On the first launch after you install or update Glint, it prepares text recognition in the background, so your first **Copy Text** is quick. If you use it straight away, it may take up to 45 seconds, says so after 10 seconds, and if it runs out of time asks you to try again.
 
 **Annotate**
 - Pencil, Line, Arrow, Ellipse, Rectangle, Marker, Text and Redact, in a palette beside the selection.

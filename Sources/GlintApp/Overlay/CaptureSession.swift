@@ -21,9 +21,6 @@ final class CaptureSession: OverlayViewDelegate {
     private var recognition: Task<Void, Never>?
     /// Says "Preparing text recognition…" if the first recognition is slow (OQ-18).
     private var recognitionNotice: Task<Void, Never>?
-    /// Whether a recognition, or the launch warm-up, has finished since Glint launched, so Vision's
-    /// text model is ready and later ones keep the shorter limit (OQ-18).
-    static var recognitionHasFinished = false
     private let logger = Logger(subsystem: GlintCore.bundleIdentifier, category: "capture")
 
     /// - Parameter windows: what a click can snap to (FR-19); nil when window snapping is off (OQ-21).
@@ -248,7 +245,7 @@ final class CaptureSession: OverlayViewDelegate {
     /// times out, macOS may still be preparing the text model, and the message says so (OQ-18).
     private func recognizeText(in image: CGImage, shownOn owner: OverlayView) {
         let started = ContinuousClock.now
-        let isFirst = !Self.recognitionHasFinished
+        let isFirst = !TextRecognitionReadiness.hasFinished
         let timeout = TextRecognitionLimits.timeout(isFirstSinceLaunch: isFirst)
         owner.setRecognizingText(true)
         // Both tasks hold `owner` weakly: if Esc ends the capture while Vision is still busy, its
@@ -263,7 +260,7 @@ final class CaptureSession: OverlayViewDelegate {
         recognition = Task { [weak self, weak owner] in
             let result = await Self.recognize(image, timeout: timeout)
             // Vision answered, with or without text, so its model is ready (OQ-18).
-            if case .success = result { Self.recognitionHasFinished = true }
+            if case .success = result { TextRecognitionReadiness.hasFinished = true }
             guard let self, let owner, !Task.isCancelled else { return }   // Esc or ⌘X ended the capture
             recognition = nil
             recognitionNotice?.cancel()

@@ -39,9 +39,11 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
         warmUpTextRecognitionIfNeeded()
     }
 
-    /// On the first launch of each build, recognises a small generated image so macOS prepares
-    /// Vision's text model before the first Copy Text (FR-46, OQ-18). It starts a few seconds after
-    /// setup and runs at background priority, so launch, the hotkey and the menu never wait for it.
+    /// On the first launch of each build and macOS version, recognises a small generated image so
+    /// macOS prepares Vision's text model before the first Copy Text (FR-46, OQ-18). It starts a few
+    /// seconds after setup, so launch, the hotkey and the menu never wait for it. It runs at utility
+    /// priority, not background: XPC passes the priority on to the Neural Engine compile, which
+    /// background would confine to the efficiency cores and throttle.
     private func warmUpTextRecognitionIfNeeded() {
         let build = Self.buildKey()
         guard TextRecognitionWarmUp.isNeeded(warmedUpBuild: settings.textRecognitionWarmedUpBuild,
@@ -50,9 +52,9 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
             try? await Task.sleep(for: .seconds(5))
             let started = ContinuousClock.now
             do {
-                try await Task.detached(priority: .background) { try await TextRecognition.warmUp() }.value
+                try await Task.detached(priority: .utility) { try await TextRecognition.warmUp() }.value
                 logger.notice("text recognition warmed up in \(milliseconds(since: started)) ms")
-                CaptureSession.recognitionHasFinished = true   // the next Copy Text keeps the usual limit
+                TextRecognitionReadiness.hasFinished = true   // the next Copy Text keeps the usual limit
                 if let build { settings.textRecognitionWarmedUpBuild = build }
             } catch {
                 logger.error("text recognition warm-up failed: \(String(describing: error), privacy: .public)")
@@ -61,14 +63,16 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     /// This build's warm-up key: the version and build, plus the executable's modification date,
-    /// since every local build is 0.1.0 (1). Nil if the date can't be read, so it warms up each launch.
+    /// since every local build is 0.1.0 (1), and the macOS version with its build. Nil if the date
+    /// can't be read, so it warms up each launch.
     private static func buildKey() -> String? {
         let modified = try? Bundle.main.executableURL?.resourceValues(forKeys: [.contentModificationDateKey])
             .contentModificationDate
         return TextRecognitionWarmUp.buildKey(
             version: Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "?",
             build: Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "?",
-            executableModified: modified)
+            executableModified: modified,
+            operatingSystem: ProcessInfo.processInfo.operatingSystemVersionString)
     }
 
     /// Re-opening Glint while it runs starts a capture (FR-3).

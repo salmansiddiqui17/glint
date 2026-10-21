@@ -3,18 +3,24 @@ import Foundation
 
 /// When to warm up Vision's text model (FR-46, OQ-18). The first recognition after a new build
 /// is installed makes macOS compile the model for the Neural Engine, which took about 55 s; the
-/// compiled model is then cached for that build, so Glint warms up once per build.
+/// compiled model is then cached, so Glint warms up once per build and macOS version.
 public enum TextRecognitionWarmUp {
-    /// Identifies the running build, or nil if it can't be told apart from others. Local builds all
-    /// carry the same version and build, so the key adds the executable's modification date, which
-    /// changes whenever the binary is linked or signed and survives installing the app unchanged.
-    public static func buildKey(version: String, build: String, executableModified: Date?) -> String? {
+    /// Identifies the running build on this macOS, or nil if the build can't be told apart from
+    /// others. Local builds all carry the same version and build, so the key adds the executable's
+    /// modification date, which changes whenever the binary is linked or signed and survives
+    /// installing the app with ditto or Finder (a plain `cp -R` costs one extra warm-up). It also
+    /// adds `operatingSystem` (the macOS version and build), since a macOS update most likely
+    /// replaces Vision's models, so the compiled model is rebuilt.
+    public static func buildKey(version: String, build: String, executableModified: Date?,
+                                operatingSystem: String) -> String? {
         guard let executableModified else { return nil }
-        return "\(version) (\(build)) \(Int64(executableModified.timeIntervalSince1970.rounded(.down)))"
+        let modified = Int64(executableModified.timeIntervalSince1970.rounded(.down))
+        return "\(version) (\(build)) \(modified) on \(operatingSystem)"
     }
 
-    /// Whether to warm up: unless `currentBuild` is the build already warmed up. A build without
-    /// a key is warmed up on every launch, which costs a fraction of a second once compiled.
+    /// Whether to warm up: unless `currentBuild` is the build, on this macOS, already warmed up.
+    /// A build without a key is warmed up on every launch, which costs a fraction of a second once
+    /// compiled.
     public static func isNeeded(warmedUpBuild: String?, currentBuild: String?) -> Bool {
         currentBuild == nil || warmedUpBuild != currentBuild
     }
@@ -25,7 +31,8 @@ extension TextRecognition {
     public enum WarmUpError: Error {
         /// The generated image couldn't be drawn.
         case noImage
-        /// Vision answered but read nothing, so its text model may not have run.
+        /// Vision answered but read nothing. An empty result counts as a failure, so the next
+        /// launch tries again.
         case nothingRead
     }
 
@@ -35,8 +42,12 @@ extension TextRecognition {
     /// `warmUpText` in black on white, generated rather than captured: the warm-up never reads
     /// the screen (OQ-18).
     static func warmUpImage() -> CGImage? {
-        let layout = TextLayout(text: warmUpText, fontSize: 32)
-        let scale: CGFloat = 2
+        image(of: warmUpText)
+    }
+
+    /// `text` in black on white, `fontSize` points at `scale`, with a 20 pt margin.
+    static func image(of text: String, fontSize: CGFloat = 32, scale: CGFloat = 2) -> CGImage? {
+        let layout = TextLayout(text: text, fontSize: fontSize)
         let margin: CGFloat = 20
         guard let context = CGContext(data: nil, width: Int((layout.size.width + 2 * margin) * scale),
                                       height: Int((layout.size.height + 2 * margin) * scale), bitsPerComponent: 8,
