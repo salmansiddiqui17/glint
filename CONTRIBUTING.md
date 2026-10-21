@@ -33,8 +33,7 @@ the permission again after each rebuild.
 
 - **`GlintCore`** holds pure logic with no AppKit: selection geometry, window snapping, toolbar
   layout, annotations, text layout, text recognition, rendering and redaction, keyboard-command
-  matching and file naming. Everything here
-  is unit-tested with Swift Testing.
+  matching and file naming. Everything here is unit-tested with Swift Testing.
 - **`GlintApp`** is the AppKit and SwiftUI shell: menu bar, overlay windows, ScreenCaptureKit
   capture, the editor views, export and Preferences.
 - **`Glint`** is the executable entry point.
@@ -62,7 +61,7 @@ the comment around each one explains the behaviour it refers to.
   `String(format: String(localized: "%lld by %lld"), width, height)`. Interpolating a variable
   (`"\(width) by \(height)"`) gives a `%arg` catalog key that the app never looks up, and the sync
   script rejects it.
-- CI checks the String Catalog first, then runs the tests on macOS 27. When a test fails, download
+- CI checks the String Catalog first, then runs the tests on macOS 27. When a golden-image test fails, download
   the `test-attachments-…` artifact from the run to see the expected, actual and diff images. CI
   also launches the built app on macOS 15 and 26 (`scripts/smoke-launch.sh`), so guard any API
   newer than macOS 15 with `if #available`.

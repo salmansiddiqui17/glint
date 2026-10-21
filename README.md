@@ -35,8 +35,8 @@ A native Swift menu-bar app for Apple silicon, inspired by Lightshot's quick cap
 - Click a window to select exactly that window, title bar included and shadow left out, or click the desktop for the whole display.
 - Resize handles, a live pixel-size badge, arrow-key nudging and ⌘A for the whole display.
 - Copy as PNG, or save as PNG or JPEG. The Save panel remembers the last folder. Optionally export at standard (1×) resolution.
-- **Copy Text** (⌘O) recognises the text in the selection, on your Mac, and copies it as plain text. Redacted areas are never read. If there is no text, or it can't be read, the overlay says so and stays open. Esc or ⌘X cancels while it reads.
-- The first **Copy Text** after Glint launches can take up to 45 seconds while macOS prepares its text model, and says so after 10 seconds. Later ones give up after 10 seconds.
+- **Copy Text** (⌘O) recognises the text in the selection, on your Mac, and copies it as plain text. Redacted areas are never read. If there is no text, or it can't be read, the overlay says so and stays open. Pressing Esc or ⌘X while it reads stops it and closes the capture.
+- Until **Copy Text** has worked once since Glint launched, it can take up to 45 seconds while macOS prepares its text model, and says so after 10 seconds. After that it gives up after 10 seconds.
 
 **Annotate**
 - Pencil, Line, Arrow, Ellipse, Rectangle, Marker, Text and Redact, in a palette beside the selection.
@@ -100,7 +100,8 @@ Press **⇧⌘9**, or choose **Take Screenshot** from the menu-bar icon, then dr
 | Stroke width or text size | **Scroll**, or **⌘+** / **⌘−** |
 | Constrain a shape (45°, square, circle) | Hold **⇧** while dragging |
 
-**Esc** works in stages: it cancels the shape you're drawing, then leaves the tool, then closes the capture.
+**Esc** works in stages: it cancels the shape you're drawing or finishes the text you're typing, then
+leaves the tool, then closes the capture. While **Copy Text** is reading, Esc closes the capture at once.
 
 Before you make a selection, the window under the pointer is highlighted. Only other apps' windows
 count, not the Dock, the menu bar or floating panels. Clicking outside a selection selects the window
@@ -169,7 +170,7 @@ Releases are fully automated with GitHub Actions:
 - **[CI](.github/workflows/ci.yml)** runs on every push to `main` and every pull request. It checks
   the String Catalog is up to date, runs the tests on macOS 27, builds an ad-hoc signed app, packages
   it, and uploads it as a workflow artifact. Then it launches that app on macOS 15 and 26 to check it
-  still starts. When a test fails, it uploads the expected, actual and diff images as a
+  still starts. When a golden-image test fails, it uploads the expected, actual and diff images as a
   `test-attachments-…` artifact.
 - **[Release](.github/workflows/release.yml)** runs when a version tag is pushed. It tests, builds
   with the tag's version, packages a `.dmg`, a `.zip` and `SHA256SUMS.txt`, attests build provenance,
