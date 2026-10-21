@@ -103,8 +103,8 @@ struct RedactionTests {
     }
 
     /// Pixels that aren't a whole number of bytes can't be copied byte by byte: no image rather
-    /// than a garbled one. (bits per component, bits per pixel, components)
-    /// CGImage also rejects the copy's rows for these formats, so this pins the outcome, not the guard.
+    /// than a garbled one. The copy's own CGImage(…) returns nil for these formats too, so this pins
+    /// the outcome, not the guard. (bits per component, bits per pixel, components)
     @Test(arguments: [(4, 4, 1), (12, 12, 1), (3, 9, 3), (4, 12, 3), (5, 15, 3), (10, 30, 3)])
     func onePixelPerBlockFailsClosedOnPixelsThatArentWholeBytes(format: (Int, Int, Int)) throws {
         let (bitsPerComponent, bitsPerPixel, components) = format

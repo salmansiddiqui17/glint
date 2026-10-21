@@ -534,9 +534,11 @@ final class OverlayView: NSView {
             delegate?.overlay(self, perform: .close)
         case .toggleFullDisplay:
             guard !event.isARepeat else { return true }   // holding the keys must not flicker the toggle
+            // Ignored mid-shape, like a selection drag (SelectionEditor): the shape keeps its tool.
+            guard selectionOwner?.canvas.isDrawing != true else { return true }
             editor.toggleFullDisplay()
-            // Back to no selection, the tool goes too: with one, nothing highlights and a click
-            // does nothing until Esc (OQ-16). Through `drawing`, so every display refreshes.
+            // Going back to no selection also drops the tool, so hovering can pick a window again
+            // (OQ-16). Through `drawing`, so every display refreshes.
             if editor.selection == nil { drawing.tool = nil }
             delegate?.overlayDidBeginSelection(self)
             refresh()
