@@ -1,14 +1,21 @@
 import KeyboardShortcuts
 import SwiftUI
 
-/// The welcome window (FR-10): what Glint does, the hotkey, Screen Recording and launch at login.
-/// Shown again when a capture finds Screen Recording off (FR-12); then it explains that instead
-/// and leaves launch at login alone, so the user's later choice in Preferences stands.
+/// The welcome window (FR-10): what Glint does, the hotkey, Screen Recording, launch at login and
+/// Copy Text. Shown again when a capture finds Screen Recording off (FR-12); then it explains that
+/// instead and leaves both choices alone, so the user's later choices in Preferences stand.
 struct OnboardingView: View {
+    /// What the first run asks, applied when the user clicks Done.
+    struct Choices {
+        let launchAtLogin: Bool
+        let copyTextEnabled: Bool
+    }
+
     let isFirstRun: Bool
-    /// Receives the launch-at-login choice on the first run, nil afterwards.
-    let onDone: (_ launchAtLogin: Bool?) -> Void
+    /// Receives the choices on the first run, nil afterwards.
+    let onDone: (Choices?) -> Void
     @State private var launchAtLogin = true
+    @State private var copyTextEnabled = SettingsDefault.copyTextEnabled   // unchecked (OQ-22)
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -31,12 +38,16 @@ struct OnboardingView: View {
             if isFirstRun {
                 Toggle("Launch Glint at login", isOn: $launchAtLogin)
                     .help("Starts Glint when you log in, so the shortcut always works.")
+                Toggle("Copy text from screenshots (on-device)", isOn: $copyTextEnabled)
+                    .help("Adds Copy Text (⌘O), which reads the text in a selection with on-device text recognition. You can change this in Preferences.")
             }
             HStack {
                 Spacer()
-                Button("Done") { onDone(isFirstRun ? launchAtLogin : nil) }
-                    .keyboardShortcut(.defaultAction)
-                    .help("Closes this window.")
+                Button("Done") {
+                    onDone(isFirstRun ? Choices(launchAtLogin: launchAtLogin, copyTextEnabled: copyTextEnabled) : nil)
+                }
+                .keyboardShortcut(.defaultAction)
+                .help("Closes this window.")
             }
         }
         .padding(24)

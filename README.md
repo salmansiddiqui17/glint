@@ -35,8 +35,8 @@ A native Swift menu-bar app for Apple silicon, inspired by Lightshot's quick cap
 - Optional window snapping, off by default: turn on **Select windows by clicking** in Preferences, then click a window to select exactly that window, title bar included and shadow left out, or click the desktop for the whole display.
 - Resize handles, a live pixel-size badge, arrow-key nudging and ⌘A for the whole display.
 - Copy as PNG, or save as PNG or JPEG. The Save panel remembers the last folder. Optionally export at standard (1×) resolution.
-- **Copy Text** (⌘O) recognises the text in the selection, on your Mac, and copies it as plain text. Redacted areas are never read. If there is no text, or it can't be read, the overlay says so and stays open. Pressing Esc or ⌘X while it reads stops it and closes the capture.
-- On the first launch after you install or update Glint, it prepares text recognition in the background, so your first **Copy Text** is quick. If you use it straight away, it may take up to 45 seconds, says so after 10 seconds, and if it runs out of time asks you to try again.
+- Optional **Copy Text** (⌘O), off by default: turn on **Copy text from screenshots** in Preferences or in the first-run window. It recognises the text in the selection, on your Mac, and copies it as plain text. Redacted areas are never read. If there is no text, or it can't be read, the overlay says so and stays open. Pressing Esc or ⌘X while it reads stops it and closes the capture. While it's off, the toolbar has no Copy Text button and Glint never loads text recognition.
+- When you turn Copy Text on, and on the first launch after you install or update Glint with it on, Glint prepares text recognition in the background, so your first **Copy Text** is quick. If you use it straight away, it may take up to 45 seconds, says so after 10 seconds, and if it runs out of time asks you to try again. Turning it off applies from the next capture; text recognition's memory is freed when Glint next quits.
 
 **Annotate**
 - Pencil, Line, Arrow, Ellipse, Rectangle, Marker, Text and Redact, in a palette beside the selection.
@@ -90,7 +90,7 @@ Press **⇧⌘9**, or choose **Take Screenshot** from the menu-bar icon, then dr
 | --- | --- |
 | Select a window, or the whole display (with **Select windows by clicking** on) | **Click** the window, or the desktop |
 | Copy to the clipboard and close | **Return** or **⌘C** |
-| Copy the text in the selection and close | **⌘O** |
+| Copy the text in the selection and close (with **Copy text from screenshots** on) | **⌘O** |
 | Save to a file | **⌘S** |
 | Close without saving | **Esc** or **⌘X** |
 | Select the whole display | **⌘A** (or **⌘F**) |
@@ -118,8 +118,8 @@ dragging moves or resizes the selection.
 
 Glint runs in the macOS App Sandbox, and its only file access is to locations you pick in the Save
 panel. It has **no network entitlement** (the build script refuses to produce an app that has one),
-so Glint itself never sends your screenshots or their text anywhere. **Copy Text** uses Apple's
-on-device Vision text recognition. Glint's logs hold only diagnostics such as image sizes, timings
+so Glint itself never sends your screenshots or their text anywhere. **Copy Text**, when you turn it
+on, uses Apple's on-device Vision text recognition. Glint's logs hold only diagnostics such as image sizes, timings
 and errors, never what you capture, type or copy as text. What you copy goes to the macOS clipboard,
 which Universal Clipboard may share with your other Apple devices, and macOS uploads files you save
 to a synced folder such as iCloud Drive.

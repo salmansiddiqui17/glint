@@ -5,7 +5,8 @@ enum OverlayAction {
     case copyText, copy, save, close
 }
 
-/// The horizontal action toolbar under the selection (FR-41): Copy Text, Copy, Save, Close.
+/// The horizontal action toolbar under the selection (FR-41): Copy Text, Copy, Save, Close, or
+/// just Copy, Save, Close while Copy Text is turned off (OQ-22).
 final class ActionToolbar: NSVisualEffectView {
     static let buttonSize: CGFloat = 28
     static let spacing: CGFloat = 2
@@ -18,7 +19,7 @@ final class ActionToolbar: NSVisualEffectView {
         let shortcut: String
     }
 
-    private static let items = [
+    private static let allItems = [
         Item(action: .copyText, symbol: "text.viewfinder", title: String(localized: "Copy Text"), shortcut: "⌘O"),
         Item(action: .copy, symbol: "doc.on.doc", title: String(localized: "Copy"),
              shortcut: String(localized: "⌘C or Return")),
@@ -27,10 +28,13 @@ final class ActionToolbar: NSVisualEffectView {
              shortcut: String(localized: "⌘X or Esc")),
     ]
 
-    static var size: CGSize {
+    private let items: [Item]
+
+    /// The toolbar's size, which follows its number of buttons.
+    override var intrinsicContentSize: NSSize {
         let count = CGFloat(items.count)
-        return CGSize(width: count * buttonSize + (count - 1) * spacing + 2 * padding,
-                      height: buttonSize + 2 * padding)
+        return CGSize(width: count * Self.buttonSize + (count - 1) * Self.spacing + 2 * Self.padding,
+                      height: Self.buttonSize + 2 * Self.padding)
     }
 
     var onAction: ((OverlayAction) -> Void)?
@@ -42,8 +46,11 @@ final class ActionToolbar: NSVisualEffectView {
     private let spinner = NSProgressIndicator()
     private var spinnerDelay: Task<Void, Never>?
 
-    init() {
-        super.init(frame: CGRect(origin: .zero, size: Self.size))
+    /// - Parameter includesCopyText: whether Copy Text is turned on (OQ-22).
+    init(includesCopyText: Bool) {
+        items = Self.allItems.filter { includesCopyText || $0.action != .copyText }
+        super.init(frame: .zero)
+        setFrameSize(intrinsicContentSize)
         material = .hudWindow
         blendingMode = .withinWindow
         state = .active
@@ -55,7 +62,7 @@ final class ActionToolbar: NSVisualEffectView {
         setAccessibilityRole(.toolbar)
         setAccessibilityLabel(String(localized: "Capture actions"))
 
-        for (index, item) in Self.items.enumerated() {
+        for (index, item) in items.enumerated() {
             let button = ToolbarButton(frame: CGRect(
                 x: Self.padding + CGFloat(index) * (Self.buttonSize + Self.spacing), y: Self.padding,
                 width: Self.buttonSize, height: Self.buttonSize))
@@ -117,7 +124,7 @@ final class ActionToolbar: NSVisualEffectView {
 
     @objc private func buttonPressed(_ sender: NSButton) {
         tooltip.hide()
-        onAction?(Self.items[sender.tag].action)
+        onAction?(items[sender.tag].action)
     }
 
     /// While text is recognised, the Copy Text button shows a spinner instead of its icon (FR-46).
@@ -134,9 +141,9 @@ final class ActionToolbar: NSVisualEffectView {
     }
 
     private func showSpinner(_ shown: Bool) {
-        guard let index = Self.items.firstIndex(where: { $0.action == .copyText }) else { return }
+        guard let index = items.firstIndex(where: { $0.action == .copyText }) else { return }
         let button = buttons[index]
-        let item = Self.items[index]
+        let item = items[index]
         button.image = shown ? nil : NSImage(systemSymbolName: item.symbol, accessibilityDescription: item.title)
         if shown {
             let size = spinner.fittingSize

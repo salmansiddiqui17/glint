@@ -10,6 +10,7 @@ enum SettingsKey {
     static let lastSaveDirectory = "lastSaveDirectory"
     static let redactionStyle = "redactionStyle"
     static let snapsToWindows = "snapsToWindows"
+    static let copyTextEnabled = "copyTextEnabled"
     static let annotationColor = "annotationColor"
     static let strokeWidth = "strokeWidth"
     static let textFontSize = "textFontSize"
@@ -22,6 +23,7 @@ enum SettingsDefault {
     static let defaultSaveFormat = ImageFormat.png
     static let redactionStyle = RedactionStyle.pixelate
     static let snapsToWindows = false   // OQ-21
+    static let copyTextEnabled = false  // OQ-22
 }
 
 /// Typed access to Glint's preferences. SwiftUI views use `@AppStorage` with the same keys and
@@ -62,6 +64,13 @@ final class AppSettings {
     var snapsToWindows: Bool {
         get { defaults.object(forKey: SettingsKey.snapsToWindows) as? Bool ?? SettingsDefault.snapsToWindows }
         set { defaults.set(newValue, forKey: SettingsKey.snapsToWindows) }
+    }
+
+    /// Whether the overlay offers Copy Text (FR-46): its toolbar button and ⌘O. Off by default, so
+    /// Glint never runs Vision, its warm-up included, unless the user turns it on (OQ-22).
+    var copyTextEnabled: Bool {
+        get { defaults.object(forKey: SettingsKey.copyTextEnabled) as? Bool ?? SettingsDefault.copyTextEnabled }
+        set { defaults.set(newValue, forKey: SettingsKey.copyTextEnabled) }
     }
 
     /// The drawing colour, width and text size, kept across captures and launches (FR-37, FR-38),

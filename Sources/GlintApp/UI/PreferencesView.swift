@@ -14,6 +14,10 @@ struct PreferencesView: View {
     private var redactionStyle: RedactionStyle = SettingsDefault.redactionStyle
     @AppStorage(SettingsKey.snapsToWindows)
     private var snapsToWindows = SettingsDefault.snapsToWindows
+    @AppStorage(SettingsKey.copyTextEnabled)
+    private var copyTextEnabled = SettingsDefault.copyTextEnabled
+    /// Called when Copy Text is turned on, to warm up text recognition (OQ-22).
+    let onTurnOnCopyText: () -> Void
     @State private var loginStatus = LoginItem.status
     @State private var loginItemError: String?
 
@@ -53,6 +57,16 @@ struct PreferencesView: View {
                 Text("Hovering highlights the window under the pointer, and a click selects it.")
             }
             .help("When off, a capture just dims and you drag to select an area.")
+            // Off by default (OQ-22); read when a capture starts, so the next one follows it. Turning
+            // it off can't unload Vision from a running Glint; its memory goes at the next quit (FR-46).
+            Toggle(isOn: $copyTextEnabled) {
+                Text("Copy text from screenshots")
+                Text("Reads the text in a selection with on-device text recognition (⌘O).")
+            }
+            .help("When off, the toolbar has no Copy Text button and Glint never runs text recognition.")
+            .onChange(of: copyTextEnabled) { _, enabled in
+                if enabled { onTurnOnCopyText() }
+            }
             Toggle(isOn: $saveAtStandardResolution) {
                 Text("Save at standard resolution (1×)")
                 Text("Scales Retina captures down to their on-screen size in points.")

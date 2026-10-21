@@ -10,6 +10,8 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
     private let windows = WindowPresenter()
     private var menuBar: MenuBarController?
     private var isSetUp = false
+    /// The text recognition warm-up while it runs (OQ-18).
+    private var warmUp: Task<Void, Never>?
     private let logger = Logger(subsystem: GlintCore.bundleIdentifier, category: "app")
     private lazy var coordinator = CaptureCoordinator(
         settings: settings, exporter: Exporter(settings: settings),
@@ -36,20 +38,25 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
         if !settings.hasCompletedOnboarding {
             showOnboarding()
         }
-        warmUpTextRecognitionIfNeeded()
+        warmUpTextRecognitionIfNeeded(after: .seconds(5))
     }
 
     /// On the first launch of each build and macOS version, recognises a small generated image so
-    /// macOS prepares Vision's text model before the first Copy Text (FR-46, OQ-18). It starts a few
-    /// seconds after setup, so launch, the hotkey and the menu never wait for it. It runs at utility
-    /// priority, not background: XPC passes the priority on to the Neural Engine compile, which
-    /// background would confine to the efficiency cores and throttle.
-    private func warmUpTextRecognitionIfNeeded() {
+    /// macOS prepares Vision's text model before the first Copy Text (FR-46, OQ-18). Only while
+    /// Copy Text is turned on: otherwise Glint never runs Vision (OQ-22). At launch it starts after
+    /// `delay`, so launch, the hotkey and the menu never wait for it; turning Copy Text on starts it
+    /// at once. It runs at utility priority, not background: XPC passes the priority on to the
+    /// Neural Engine compile, which background would confine to the efficiency cores and throttle.
+    private func warmUpTextRecognitionIfNeeded(after delay: Duration = .zero) {
         let build = Self.buildKey()
-        guard TextRecognitionWarmUp.isNeeded(warmedUpBuild: settings.textRecognitionWarmedUpBuild,
+        guard warmUp == nil,   // one at a time: turning Copy Text off and on again doesn't start another
+              TextRecognitionWarmUp.isNeeded(isEnabled: settings.copyTextEnabled,
+                                             warmedUpBuild: settings.textRecognitionWarmedUpBuild,
                                              currentBuild: build) else { return }
-        Task {
-            try? await Task.sleep(for: .seconds(5))
+        warmUp = Task {
+            defer { warmUp = nil }
+            try? await Task.sleep(for: delay)
+            guard settings.copyTextEnabled else { return }   // turned off while waiting
             let started = ContinuousClock.now
             do {
                 try await Task.detached(priority: .utility) { try await TextRecognition.warmUp() }.value
@@ -85,14 +92,16 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
     private func showOnboarding() {
         let isFirstRun = !settings.hasCompletedOnboarding
         windows.show("onboarding", title: isFirstRun ? String(localized: "Welcome to Glint") : "Glint") {
-            OnboardingView(isFirstRun: isFirstRun) { [weak self] launchAtLogin in
+            OnboardingView(isFirstRun: isFirstRun) { [weak self] choices in
                 guard let self else { return }
-                if let launchAtLogin {
+                if let choices {
                     do {
-                        try LoginItem.setEnabled(launchAtLogin)   // no-op if already in that state
+                        try LoginItem.setEnabled(choices.launchAtLogin)   // no-op if already in that state
                     } catch {
                         logger.error("launch at login: \(error.localizedDescription, privacy: .public)")
                     }
+                    settings.copyTextEnabled = choices.copyTextEnabled
+                    warmUpTextRecognitionIfNeeded()   // at once, if Copy Text was turned on (OQ-22)
                 }
                 settings.hasCompletedOnboarding = true
                 windows.close("onboarding")
@@ -101,7 +110,10 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func showPreferences() {
-        windows.show("preferences", title: String(localized: "Glint Preferences")) { PreferencesView() }
+        windows.show("preferences", title: String(localized: "Glint Preferences")) {
+            // Turning Copy Text on warms up at once, not at the next launch (OQ-22).
+            PreferencesView(onTurnOnCopyText: { [weak self] in self?.warmUpTextRecognitionIfNeeded() })
+        }
     }
 
     /// FR-5.

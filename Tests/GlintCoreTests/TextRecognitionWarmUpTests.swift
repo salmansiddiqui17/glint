@@ -17,14 +17,21 @@ struct TextRecognitionWarmUpTests {
     }
 
     @Test func warmsUpUntilThisBuildHasBeen() {
-        #expect(TextRecognitionWarmUp.isNeeded(warmedUpBuild: nil, currentBuild: "a"))
-        #expect(TextRecognitionWarmUp.isNeeded(warmedUpBuild: "a", currentBuild: "b"))
-        #expect(!TextRecognitionWarmUp.isNeeded(warmedUpBuild: "a", currentBuild: "a"))
+        #expect(TextRecognitionWarmUp.isNeeded(isEnabled: true, warmedUpBuild: nil, currentBuild: "a"))
+        #expect(TextRecognitionWarmUp.isNeeded(isEnabled: true, warmedUpBuild: "a", currentBuild: "b"))
+        #expect(!TextRecognitionWarmUp.isNeeded(isEnabled: true, warmedUpBuild: "a", currentBuild: "a"))
     }
 
     @Test func warmsUpEveryLaunchWhenTheBuildIsUnknown() {
-        #expect(TextRecognitionWarmUp.isNeeded(warmedUpBuild: nil, currentBuild: nil))
-        #expect(TextRecognitionWarmUp.isNeeded(warmedUpBuild: "a", currentBuild: nil))
+        #expect(TextRecognitionWarmUp.isNeeded(isEnabled: true, warmedUpBuild: nil, currentBuild: nil))
+        #expect(TextRecognitionWarmUp.isNeeded(isEnabled: true, warmedUpBuild: "a", currentBuild: nil))
+    }
+
+    /// With Copy Text off, Glint never runs Vision, so it never warms up either (OQ-22).
+    @Test func neverWarmsUpWhileCopyTextIsOff() {
+        #expect(!TextRecognitionWarmUp.isNeeded(isEnabled: false, warmedUpBuild: nil, currentBuild: "a"))
+        #expect(!TextRecognitionWarmUp.isNeeded(isEnabled: false, warmedUpBuild: "a", currentBuild: "b"))
+        #expect(!TextRecognitionWarmUp.isNeeded(isEnabled: false, warmedUpBuild: nil, currentBuild: nil))
     }
 
     @Test func buildKeyIsStableForOneBinary() {

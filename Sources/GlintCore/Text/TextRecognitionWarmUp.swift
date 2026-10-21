@@ -18,11 +18,12 @@ public enum TextRecognitionWarmUp {
         return "\(version) (\(build)) \(modified) on \(operatingSystem)"
     }
 
-    /// Whether to warm up: unless `currentBuild` is the build, on this macOS, already warmed up.
-    /// A build without a key is warmed up on every launch, which costs a fraction of a second once
-    /// compiled.
-    public static func isNeeded(warmedUpBuild: String?, currentBuild: String?) -> Bool {
-        currentBuild == nil || warmedUpBuild != currentBuild
+    /// Whether to warm up: only while Copy Text is turned on (`isEnabled`), since otherwise Glint
+    /// never runs Vision (OQ-22), and unless `currentBuild` is the build, on this macOS, already
+    /// warmed up. A build without a key is warmed up on every launch, which costs a fraction of a
+    /// second once compiled.
+    public static func isNeeded(isEnabled: Bool, warmedUpBuild: String?, currentBuild: String?) -> Bool {
+        isEnabled && (currentBuild == nil || warmedUpBuild != currentBuild)
     }
 }
 

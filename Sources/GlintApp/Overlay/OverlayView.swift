@@ -33,8 +33,10 @@ final class OverlayView: NSView {
     private let drawing: DrawingState
     private var editor: SelectionEditor
     private let standardResolution: Bool
+    /// Whether Copy Text is turned on: its toolbar button and ⌘O (FR-46, OQ-22).
+    private let copyTextEnabled: Bool
     private let chrome: OverlayChromeView
-    private let toolbar = ActionToolbar()
+    private let toolbar: ActionToolbar
     private let palette = ToolsPalette()
     private var trackingArea: NSTrackingArea?
     /// True once the pointer has moved during the current press, so a plain click doesn't flash the toolbars.
@@ -62,12 +64,17 @@ final class OverlayView: NSView {
         case none, selection, drawing
     }
 
-    /// - Parameter snapTargets: nil when window snapping is off: no hover highlight, and a click
-    ///   selects nothing (OQ-21).
-    init(capture: DisplayCapture, snapTargets: SnapTargets?, drawing: DrawingState, standardResolution: Bool) {
+    /// - Parameters:
+    ///   - snapTargets: nil when window snapping is off: no hover highlight, and a click selects
+    ///     nothing (OQ-21).
+    ///   - copyTextEnabled: false hides the Copy Text button and makes ⌘O do nothing (OQ-22).
+    init(capture: DisplayCapture, snapTargets: SnapTargets?, drawing: DrawingState, standardResolution: Bool,
+         copyTextEnabled: Bool) {
         self.capture = capture
         self.drawing = drawing
         self.standardResolution = standardResolution
+        self.copyTextEnabled = copyTextEnabled
+        toolbar = ActionToolbar(includesCopyText: copyTextEnabled)
         let frame = CGRect(origin: .zero, size: capture.frame.size)
         editor = SelectionEditor(bounds: frame, snapTargets: snapTargets)
         canvas = AnnotationCanvas(bounds: frame, scale: capture.scale)
@@ -264,8 +271,8 @@ final class OverlayView: NSView {
         var badge: (text: String, frame: CGRect)?
         if let selection = editor.selection {
             let text = OutputGeometry.badgeText(outputSize(of: selection))
-            let toolbarFrame = OverlayLayout.actionToolbarFrame(size: ActionToolbar.size, selection: selection,
-                                                                bounds: bounds)
+            let toolbarFrame = OverlayLayout.actionToolbarFrame(size: toolbar.intrinsicContentSize,
+                                                                selection: selection, bounds: bounds)
             let paletteFrame = OverlayLayout.toolsPaletteFrame(size: ToolsPalette.size, selection: selection,
                                                                bounds: bounds, avoiding: toolbarFrame)
             toolbar.frame = flip.rect(chrome.snapped(toolbarFrame))
@@ -548,7 +555,8 @@ final class OverlayView: NSView {
         guard !isRecognizingText || command == .close else { return true }
         switch command {
         case .copyText:
-            perform(.copyText)
+            // Turned off, ⌘O does nothing, quietly (OQ-22): it isn't unavailable now, just not offered.
+            if copyTextEnabled { perform(.copyText) }
         case .copy:
             perform(.copy)
         case .save:

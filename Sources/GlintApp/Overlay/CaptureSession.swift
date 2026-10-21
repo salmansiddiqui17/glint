@@ -31,8 +31,10 @@ final class CaptureSession: OverlayViewDelegate {
         drawing = DrawingState(settings: settings)
         for capture in captures {
             let panel = OverlayPanel(frame: capture.frame)
+            // Settings are read as the overlay is built, so a change in Preferences applies to the next capture.
             let view = OverlayView(capture: capture, snapTargets: windows?.targets(for: capture.frame), drawing: drawing,
-                                   standardResolution: settings.saveAtStandardResolution)
+                                   standardResolution: settings.saveAtStandardResolution,
+                                   copyTextEnabled: settings.copyTextEnabled)
             view.delegate = self
             panel.contentView = view
             panels.append(panel)

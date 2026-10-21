@@ -28,6 +28,9 @@
     "Acknowledgements" : {
 
     },
+    "Adds Copy Text (⌘O), which reads the text in a selection with on-device text recognition. You can change this in Preferences." : {
+
+    },
     "Allow Glint in System Settings › General › Login Items." : {
 
     },
@@ -65,6 +68,12 @@
 
     },
     "Copy Text" : {
+
+    },
+    "Copy text from screenshots" : {
+
+    },
+    "Copy text from screenshots (on-device)" : {
 
     },
     "Couldn't read text" : {
@@ -163,6 +172,9 @@
     "Reading text" : {
 
     },
+    "Reads the text in a selection with on-device text recognition (⌘O)." : {
+
+    },
     "Rectangle" : {
 
     },
@@ -243,6 +255,9 @@
 
     },
     "When off, a capture just dims and you drag to select an area." : {
+
+    },
+    "When off, the toolbar has no Copy Text button and Glint never runs text recognition." : {
 
     },
     "⌘C or Return" : {
