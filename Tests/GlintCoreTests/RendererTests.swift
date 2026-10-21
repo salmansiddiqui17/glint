@@ -387,6 +387,43 @@ struct RendererTests {
                                          standardResolution: false, obscure: failing) != nil)
     }
 
+    /// Copy Text reads each redaction as one solid block, so no strength leaves the text under it
+    /// legible (FR-46); the rest of the selection is drawn as the export draws it.
+    @Test(arguments: [RedactionStyle.pixelate, .blur], [(CGFloat(1), false), (2, false), (2, true)])
+    func textRecognitionSeesRedactionsAsSolidBlocks(style: RedactionStyle, output: (scale: CGFloat, standard: Bool)) throws {
+        let scale = output.scale
+        let image = gradient(width: Int(100 * scale), height: Int(80 * scale))
+        let rect = CGRect(x: 13, y: 7, width: 41, height: 29), selection = CGRect(x: 5, y: 3, width: 70, height: 50)
+        let annotations: [Annotation] = [.redaction(rect, style: style, width: 3)]
+        let recognized = try pixelColors(#require(Renderer.renderSelectionForTextRecognition(
+            image, scale: scale, annotations: annotations, selection: selection, standardResolution: output.standard)))
+        let exported = try pixelColors(#require(render(image, selection, scale: scale, standard: output.standard,
+                                                       annotations)))
+        // The frame in output pixels. Scaling down to 1× blends the two pixels either side of its
+        // edges, so those are left out.
+        let pixels = output.standard ? 1 : scale, margin = output.standard ? 2 : 0
+        let frame = CGRect(x: (rect.minX - selection.minX) * pixels, y: (rect.minY - selection.minY) * pixels,
+                           width: rect.width * pixels, height: rect.height * pixels)
+        let inside = frame.insetBy(dx: CGFloat(margin), dy: CGFloat(margin))
+        let near = frame.insetBy(dx: CGFloat(-margin), dy: CGFloat(-margin))
+        try #require(recognized.count == exported.count && recognized.first?.count == exported.first?.count)
+        let solid = recognized[Int(inside.minY)][Int(inside.minX)]
+        #expect(solid.alpha == 255)
+        for y in recognized.indices {
+            for x in recognized[y].indices {
+                let pixel = CGPoint(x: CGFloat(x) + 0.5, y: CGFloat(y) + 0.5)
+                if inside.contains(pixel), recognized[y][x] != solid {
+                    Issue.record("pixel \(x),\(y) in the redaction is \(recognized[y][x]), not \(solid)")
+                    return
+                }
+                if !near.contains(pixel), recognized[y][x] != exported[y][x] {
+                    Issue.record("pixel \(x),\(y) outside the redaction is \(recognized[y][x]), not \(exported[y][x])")
+                    return
+                }
+            }
+        }
+    }
+
     @Test func redactionsThatCoverNoPixelsDoNotStopTheExport() throws {
         let image = makeTestImage(width: 200, height: 200, marker: 0)      // 100 × 100 pt at 2×
         let annotations: [Annotation] = [

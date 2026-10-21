@@ -141,6 +141,16 @@ final class OverlayView: NSView {
                                         patches: chrome.annotations.patches(matching: annotations))
     }
 
+    /// What Copy Text reads (FR-46): the selection as `renderSelection()` draws it, but with every
+    /// redaction a solid block, so redacted text is never read. Pending text is committed first.
+    func renderSelectionForTextRecognition() -> CGImage? {
+        commitText()
+        guard let selection = editor.selection else { return nil }
+        return Renderer.renderSelectionForTextRecognition(capture.image, scale: capture.scale,
+                                                          annotations: canvas.document.annotations,
+                                                          selection: selection, standardResolution: standardResolution)
+    }
+
     var outputDPI: CGFloat {
         OutputGeometry.dpi(scale: capture.scale, standardResolution: standardResolution)
     }

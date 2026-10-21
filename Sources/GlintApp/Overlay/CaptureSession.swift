@@ -205,8 +205,9 @@ final class CaptureSession: OverlayViewDelegate {
             guard !views.contains(where: \.isInGesture) else { return NSSound.beep() }
             views.forEach { $0.commitText() }   // FR-42: pending text is committed first
             guard let owner = overlaySelectionOwner() else { return NSSound.beep() }
-            // The rendered selection, so redactions are applied and the 1× option counts (FR-45).
-            guard let image = owner.renderSelection() else {
+            // The rendered selection, so the 1× option counts (FR-45), with each redaction a solid
+            // block so that none is ever read.
+            guard let image = owner.renderSelectionForTextRecognition() else {
                 logger.error("text recognition render failed")
                 return NSSound.beep()
             }

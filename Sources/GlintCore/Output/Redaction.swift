@@ -53,6 +53,21 @@ public enum Redaction {
         return style == .pixelate ? onePixelPerBlock(obscured, block: Int(strength.rounded())) : obscured
     }
 
+    /// A flat, opaque grey in place of `image`, whatever the style: what text recognition sees
+    /// of a redaction, so nothing under it can be read (FR-46). Like pixelate it has one pixel
+    /// per block (NFR-6) and is drawn at `blockRect`, so it covers the whole frame.
+    static func solid(_ image: CGImage, style: RedactionStyle, strength: CGFloat) -> CGImage? {
+        let block = Int(strength.rounded())
+        guard block > 1, let space = CGColorSpace(name: CGColorSpace.sRGB),
+              let context = CGContext(data: nil, width: (image.width + block - 1) / block,
+                                      height: (image.height + block - 1) / block, bitsPerComponent: 8,
+                                      bytesPerRow: 0, space: space,
+                                      bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue) else { return nil }
+        context.setFillColor(gray: 0.5, alpha: 1)
+        context.fill(CGRect(x: 0, y: 0, width: context.width, height: context.height))
+        return context.makeImage()
+    }
+
     /// The top-left pixel of each `block` × `block` block of `image`, which for a pixellated
     /// image is that block's colour: 1/block² of the memory (NFR-6). Exact, byte for byte.
     /// Nil (fail closed) for pixels that aren't a whole number of bytes, which it can't copy.

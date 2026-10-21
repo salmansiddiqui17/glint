@@ -25,6 +25,22 @@ struct TextRecognitionTests {
         #expect(text == "Invoice number 4821\nTotal due today")
     }
 
+    /// "Redacted areas are never read" (FR-46): large text stays legible through the lightest
+    /// pixelate, so recognition must see the redaction as a solid block instead.
+    @Test func redactedTextIsNeverRead() async throws {
+        let fontSize: CGFloat = 96
+        let image = textImage(["Password hunter2"], fontSize: fontSize)   // at 2×
+        let size = CGSize(width: CGFloat(image.width) / 2, height: CGFloat(image.height) / 2)
+        let secretStart = 20 + TextLayout(text: "Password ", fontSize: fontSize).size.width
+        let secret = CGRect(x: secretStart - 4, y: 0, width: size.width - secretStart + 4, height: size.height)
+        let rendered = try #require(Renderer.renderSelectionForTextRecognition(
+            image, scale: 2, annotations: [.redaction(secret, style: .pixelate, width: 3)],
+            selection: CGRect(origin: .zero, size: size), standardResolution: false))
+        let text = try await TextRecognition.recognizeText(in: rendered)
+        #expect(text.contains("Password"))   // the rest is still read
+        #expect(!text.contains("hunter2"))
+    }
+
     @Test func blankImageHasNoText() async throws {
         let blank = textImage([""])
         #expect(try await TextRecognition.recognizeText(in: blank) == "")

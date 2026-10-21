@@ -40,6 +40,16 @@ public enum Renderer {
         return resample(native, to: output)
     }
 
+    /// What Copy Text reads (FR-46): the selection as `renderSelection` draws it, except that every
+    /// redaction, pixelate or blur, is one solid block over its frame (`Redaction.solid`). Large
+    /// text can stay legible through a pixelate or blur, and redacted areas are never read. The
+    /// overlay's patches are not reused, for the same reason.
+    public static func renderSelectionForTextRecognition(_ image: CGImage, scale: CGFloat, annotations: [Annotation],
+                                                         selection: CGRect, standardResolution: Bool) -> CGImage? {
+        renderSelection(image, scale: scale, annotations: annotations, selection: selection,
+                        standardResolution: standardResolution, obscure: Redaction.solid)
+    }
+
     /// `region` of the frozen image with `annotations` drawn over it, at native pixels. The
     /// region's edges are rounded to whole pixels as in `OutputGeometry.pixelRect`.
     ///
