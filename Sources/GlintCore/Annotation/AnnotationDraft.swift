@@ -64,7 +64,7 @@ public struct AnnotationDraft: Equatable, Sendable {
                 : .rectangle(rect, color: style.color, width: style.strokeWidth)
         case .redact:
             // Whole pixels, so the live preview and the export obscure exactly the same pixels.
-            guard let rect = box()?.intersection(bounds), !rect.isNull else { return nil }
+            guard let rect = (constrained ? box() : band())?.intersection(bounds), !rect.isNull else { return nil }
             let snapped = constrained ? squareOnPixels(rect) : PixelSnapping.aligned(rect, scale: scale)
             guard (snapped.width * scale).rounded() >= 1, (snapped.height * scale).rounded() >= 1 else { return nil }
             return .redaction(snapped, style: style.redactionStyle, width: style.strokeWidth)
@@ -84,6 +84,29 @@ public struct AnnotationDraft: Equatable, Sendable {
         let rect = CGRect(x: min(start.x, end.x), y: min(start.y, end.y),
                           width: abs(end.x - start.x), height: abs(end.y - start.y))
         return rect.width >= 1 && rect.height >= 1 ? rect : nil
+    }
+
+    /// The dragged redaction box, at least a band of `redactionBandFactor` stroke widths thick
+    /// across the drag, so a sweep along a line of text covers it (FR-36, OQ-20). The band is
+    /// centred on the drag and shifted back onto the display rather than cut, unless the display
+    /// is smaller. Nil while the drag is within the drag threshold, so a click or a jiggle adds
+    /// nothing.
+    private func band() -> CGRect? {
+        let width = abs(current.x - start.x), height = abs(current.y - start.y)
+        guard max(width, height) > SelectionEditor.dragThreshold else { return nil }
+        let thickness = DrawingLimits.redactionBandFactor * style.strokeWidth
+        func across(_ low: CGFloat, _ high: CGFloat, _ minimum: CGFloat, _ maximum: CGFloat) -> CGFloat {
+            max(min((low + high - thickness) / 2, maximum - thickness), minimum)
+        }
+        var rect = CGRect(x: min(start.x, current.x), y: min(start.y, current.y), width: width, height: height)
+        if width >= height, height < thickness {
+            rect.origin.y = across(start.y, current.y, bounds.minY, bounds.maxY)
+            rect.size.height = thickness
+        } else if height > width, width < thickness {
+            rect.origin.x = across(start.x, current.x, bounds.minX, bounds.maxX)
+            rect.size.width = thickness
+        }
+        return rect
     }
 
     /// The far corner of the ⇧ square. A drag straight along one axis gives no direction on the

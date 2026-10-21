@@ -6,8 +6,19 @@ struct AnnotationDraftTests {
     let display = CGRect(x: 0, y: 0, width: 1000, height: 800)
     let style = DrawingStyle(color: RGBAColor(red: 0, green: 0, blue: 1), strokeWidth: 5)
 
-    func draft(_ tool: Tool, from start: CGPoint = CGPoint(x: 100, y: 100), scale: CGFloat = 2) -> AnnotationDraft {
-        AnnotationDraft(tool: tool, start: start, style: style, bounds: display, scale: scale)
+    func draft(_ tool: Tool, from start: CGPoint = CGPoint(x: 100, y: 100), scale: CGFloat = 2,
+               strokeWidth: CGFloat? = nil) -> AnnotationDraft {
+        var style = style
+        if let strokeWidth { style.strokeWidth = strokeWidth }
+        return AnnotationDraft(tool: tool, start: start, style: style, bounds: display, scale: scale)
+    }
+
+    /// The redaction a drag from `start` to `end` makes at stroke width `width` (scale 2).
+    func redaction(from start: CGPoint, to end: CGPoint, width: CGFloat = 3, constrained: Bool = false) -> CGRect? {
+        var d = draft(.redact, from: start, strokeWidth: width)
+        d.drag(to: end, constrained: constrained)
+        guard case let .redaction(rect, _, _)? = d.annotation else { return nil }
+        return rect
     }
 
     @Test func pencilCollectsThePathWithTheStyle() {
@@ -78,9 +89,83 @@ struct AnnotationDraftTests {
         #expect(d.annotation == .redaction(CGRect(x: 900.5, y: 700, width: 99.5, height: 99.5),
                                            style: .pixelate, width: 5))     // still square on pixels
         var free = draft(.redact, from: CGPoint(x: 10.3, y: 20.2))
-        free.drag(to: CGPoint(x: 60.6, y: 45.9), constrained: false)
-        #expect(free.annotation == .redaction(CGRect(x: 10.5, y: 20, width: 50, height: 26),
+        free.drag(to: CGPoint(x: 60.6, y: 55.9), constrained: false)       // taller than the 30 pt band
+        #expect(free.annotation == .redaction(CGRect(x: 10.5, y: 20, width: 50, height: 36),
                                               style: .pixelate, width: 5))
+    }
+
+    // MARK: Sweeping Redact along a line (OQ-20)
+
+    @Test func aSidewaysSweepBecomesABandCentredOnTheDrag() {
+        // 6 × 3 = 18 pt, centred on y 200.5: 191.5 to 209.5, already whole pixels at 2×.
+        #expect(redaction(from: CGPoint(x: 100, y: 200), to: CGPoint(x: 300, y: 201))
+                == CGRect(x: 100, y: 191.5, width: 200, height: 18))
+        #expect(redaction(from: CGPoint(x: 300, y: 201), to: CGPoint(x: 100, y: 200))   // right to left
+                == CGRect(x: 100, y: 191.5, width: 200, height: 18))
+    }
+
+    @Test func aVerticalSweepBecomesABandAcross() {
+        #expect(redaction(from: CGPoint(x: 100, y: 100), to: CGPoint(x: 101, y: 300))
+                == CGRect(x: 91.5, y: 100, width: 18, height: 200))
+    }
+
+    @Test func theBandFollowsTheStrokeWidth() {
+        #expect(redaction(from: CGPoint(x: 100, y: 200), to: CGPoint(x: 300, y: 200), width: 10)
+                == CGRect(x: 100, y: 170, width: 200, height: 60))
+    }
+
+    @Test func aBoxAtLeastTheBandEachWayIsUnchanged() {
+        #expect(redaction(from: CGPoint(x: 100, y: 100), to: CGPoint(x: 300, y: 200))
+                == CGRect(x: 100, y: 100, width: 200, height: 100))
+    }
+
+    @Test func aSmallSquareDragWidensOnlyAcrossTheDrag() {
+        // A tie counts as sideways: the height becomes the band around y 105; the width is what was dragged.
+        #expect(redaction(from: CGPoint(x: 100, y: 100), to: CGPoint(x: 110, y: 110))
+                == CGRect(x: 100, y: 96, width: 10, height: 18))
+    }
+
+    @Test func aMoveWithinTheDragThresholdAddsNothing() {
+        #expect(SelectionEditor.dragThreshold == 3)
+        #expect(redaction(from: CGPoint(x: 100, y: 100), to: CGPoint(x: 103, y: 100)) == nil)
+        #expect(redaction(from: CGPoint(x: 100, y: 100), to: CGPoint(x: 102, y: 97)) == nil)
+        #expect(redaction(from: CGPoint(x: 100, y: 100), to: CGPoint(x: 103.5, y: 100))
+                == CGRect(x: 100, y: 91, width: 3.5, height: 18))
+    }
+
+    @Test func aBandAtTheDisplayEdgeIsShiftedInsideNotCut() {
+        #expect(redaction(from: CGPoint(x: 100, y: 4), to: CGPoint(x: 300, y: 5))
+                == CGRect(x: 100, y: 0, width: 200, height: 18))
+        #expect(redaction(from: CGPoint(x: 100, y: 800), to: CGPoint(x: 300, y: 799))
+                == CGRect(x: 100, y: 782, width: 200, height: 18))
+        #expect(redaction(from: CGPoint(x: 999, y: 100), to: CGPoint(x: 1000, y: 300))
+                == CGRect(x: 982, y: 100, width: 18, height: 200))
+    }
+
+    @Test func aBandWiderThanTheDisplayCoversIt() {
+        var d = AnnotationDraft(tool: .redact, start: CGPoint(x: 10, y: 5), style: DrawingStyle(strokeWidth: 50),
+                                bounds: CGRect(x: 0, y: 0, width: 400, height: 200), scale: 2)
+        d.drag(to: CGPoint(x: 300, y: 5), constrained: false)                // a 300 pt band on a 200 pt display
+        #expect(d.annotation == .redaction(CGRect(x: 10, y: 0, width: 290, height: 200), style: .pixelate, width: 50))
+    }
+
+    @Test func shiftStillMakesASquareRedaction() {
+        #expect(redaction(from: CGPoint(x: 100, y: 200), to: CGPoint(x: 300, y: 201), constrained: true)
+                == CGRect(x: 100, y: 200, width: 200, height: 200))
+    }
+
+    @Test func otherToolsDoNotSweepABand() {
+        let from = CGPoint(x: 100, y: 200), to = CGPoint(x: 300, y: 201)
+        var pencil = draft(.pencil, from: from, strokeWidth: 3)
+        pencil.drag(to: to, constrained: false)
+        #expect(pencil.annotation == .pencil(points: [from, to], color: style.color, width: 3))
+        var rectangle = draft(.rectangle, from: from, strokeWidth: 3)
+        rectangle.drag(to: to, constrained: false)
+        #expect(rectangle.annotation == .rectangle(CGRect(x: 100, y: 200, width: 200, height: 1),
+                                                   color: style.color, width: 3))
+        var ellipse = draft(.ellipse, from: from, strokeWidth: 3)
+        ellipse.drag(to: CGPoint(x: 300, y: 200.5), constrained: false)
+        #expect(ellipse.annotation == nil)
     }
 
     @Test func redactionAtOneXCoversTheDisplayCorner() {

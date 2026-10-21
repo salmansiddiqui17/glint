@@ -86,6 +86,9 @@ public enum DrawingLimits {
     public static let defaultFontSize: CGFloat = 24
     /// The marker's opacity (FR-34).
     public static let markerOpacity: CGFloat = 0.3
+    /// A Redact drag thinner than this many stroke widths becomes a band that thick, so sweeping
+    /// along a line of text covers it (FR-36, OQ-20): 18 pt at the default width.
+    public static let redactionBandFactor: CGFloat = 6
 
     /// `width` rounded to a whole point, moved by `steps` and kept in range; a non-finite width
     /// becomes the default. With zero steps this just tidies a stored or computed value.
