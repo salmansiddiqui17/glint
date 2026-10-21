@@ -30,6 +30,13 @@ jobs:
           xcodebuild -version
           swift --version
 
+      # Before the tests, so a stale catalog fails fast.
+      - name: Check the String Catalog is up to date
+        run: |
+          scripts/sync-strings.sh
+          git diff --exit-code Resources/Localizable.xcstrings \
+            || { echo "::error::Run scripts/sync-strings.sh and commit Resources/Localizable.xcstrings."; exit 1; }
+
       - name: Run unit tests
         run: |
           mkdir -p "$RUNNER_TEMP/test-attachments"
@@ -44,12 +51,6 @@ jobs:
           path: ${{ runner.temp }}/test-attachments
           if-no-files-found: ignore
           retention-days: 14
-
-      - name: Check the String Catalog is up to date
-        run: |
-          scripts/sync-strings.sh
-          git diff --exit-code Resources/Localizable.xcstrings \
-            || { echo "::error::Run scripts/sync-strings.sh and commit Resources/Localizable.xcstrings."; exit 1; }
 
       - name: Build Glint.app (release, ad-hoc signed)
         env:

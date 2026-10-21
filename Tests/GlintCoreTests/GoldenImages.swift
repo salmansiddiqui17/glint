@@ -8,7 +8,8 @@ import Testing
 ///
 /// Goldens are PNG files in `Goldens/` next to this file. Text goldens live in
 /// `Goldens/text/<macOS major version>/`, because glyph rendering changes between versions.
-/// Run the tests with `GLINT_RECORD_GOLDENS=1` to write new goldens instead of comparing.
+/// Run the tests with `GLINT_RECORD_GOLDENS=1` to write new goldens instead of comparing; each
+/// recorded golden fails its test, so a recording run never passes.
 enum GoldenImages {
     /// A pixel matches when every channel is within this many 8-bit steps.
     static let channelTolerance = 2
@@ -36,6 +37,9 @@ enum GoldenImages {
         if isRecording {
             try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
             try #require(png(actual), sourceLocation: sourceLocation).write(to: url)
+            // Always a failure, so the variable leaking into CI can't pass every golden unchecked.
+            Issue.record("Recorded \(name).png; run again without GLINT_RECORD_GOLDENS to compare",
+                         sourceLocation: sourceLocation)
             return
         }
         guard let source = CGImageSourceCreateWithURL(url as CFURL, nil),
@@ -81,10 +85,10 @@ enum GoldenImages {
         let height: Int
         var bytes: [UInt8]
 
-        init(width: Int, height: Int, bytes: [UInt8]? = nil) {
+        init(width: Int, height: Int) {
             self.width = width
             self.height = height
-            self.bytes = bytes ?? [UInt8](repeating: 0, count: width * height * 4)
+            self.bytes = [UInt8](repeating: 0, count: width * height * 4)
         }
     }
 

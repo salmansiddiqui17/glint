@@ -10,12 +10,15 @@ APP="${1:?usage: $0 path/to/Glint.app}"
 VERSION="$(sw_vers -productVersion)"
 
 # Fails the job with whatever crash report and log lines macOS kept, so a launch crash on an older
-# macOS shows its cause (such as a missing symbol) right in the CI log.
+# macOS shows its cause (such as a missing symbol) right in the CI log. Only reports newer than the
+# marker made just before launching, so a developer Mac's old crashes aren't printed.
 fail() {
   echo "::error::$1 on macOS $VERSION."
   sleep 3   # ReportCrash writes the report a moment after the crash
-  local reports
-  reports="$(find ~/Library/Logs/DiagnosticReports -name 'Glint*' 2>/dev/null || true)"
+  local reports=""
+  if [[ -n "${MARKER:-}" ]]; then
+    reports="$(find ~/Library/Logs/DiagnosticReports -name 'Glint*' -newer "$MARKER" 2>/dev/null || true)"
+  fi
   if [[ -n "$reports" ]]; then
     while IFS= read -r report; do
       echo "--- $report"
@@ -31,6 +34,8 @@ fail() {
 pkill -x Glint 2>/dev/null || true
 for _ in {1..20}; do pgrep -x Glint >/dev/null || break; sleep 0.25; done
 
+MARKER="$(mktemp)"
+trap 'rm -f "$MARKER"' EXIT
 open "$APP" || fail "open could not launch Glint"
 for _ in {1..40}; do pgrep -x Glint >/dev/null && break; sleep 0.25; done
 pgrep -x Glint >/dev/null || fail "Glint did not start, or exited at once"

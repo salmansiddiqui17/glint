@@ -29,5 +29,7 @@ xcrun xcstringstool sync "$CATALOG" --stringsdata "$OUT"/*.stringsdata
 if grep -q '%arg' "$CATALOG"; then
   echo "error: $CATALOG has a %arg key. Write interpolated text with an explicit format key," >&2
   echo "       e.g. String(format: String(localized: \"%lld by %lld\"), w, h). See CONTRIBUTING.md." >&2
+  echo "       The keys:" >&2
+  grep -o '"[^"]*%arg[^"]*" :' "$CATALOG" | sed 's/ :$//; s/^/         /' >&2
   exit 1
 fi

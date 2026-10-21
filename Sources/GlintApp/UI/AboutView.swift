@@ -40,7 +40,8 @@ struct AboutView: View {
         .frame(width: 420)
     }
 
-    /// KeyboardShortcuts' licence, which its MIT terms ask us to include.
+    /// KeyboardShortcuts 3.1.0's licence (`.build/checkouts/KeyboardShortcuts/license`), which its
+    /// MIT terms ask us to include; update it when bumping the package.
     static let keyboardShortcutsLicense = """
         MIT License
 
