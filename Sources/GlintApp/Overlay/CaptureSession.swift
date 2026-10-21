@@ -17,6 +17,8 @@ final class CaptureSession: OverlayViewDelegate {
     /// The app that was in front before the overlay, which gets focus back afterwards, so ⌘V
     /// after a copy lands there instead of in Glint.
     private var previousApp: NSRunningApplication?
+    /// Whether Copy Text is turned on for this capture (OQ-22).
+    private let copyTextEnabled: Bool
     /// Copy Text's recognition while it runs (FR-46).
     private var recognition: Task<Void, Never>?
     /// Says "Preparing text recognition…" if the first recognition is slow (OQ-18).
@@ -28,13 +30,14 @@ final class CaptureSession: OverlayViewDelegate {
          onFinish: @escaping () -> Void) {
         self.exporter = exporter
         self.onFinish = onFinish
+        // Settings are read as the overlay is built, so a change in Preferences applies to the next capture.
+        copyTextEnabled = settings.copyTextEnabled
         drawing = DrawingState(settings: settings)
         for capture in captures {
             let panel = OverlayPanel(frame: capture.frame)
-            // Settings are read as the overlay is built, so a change in Preferences applies to the next capture.
             let view = OverlayView(capture: capture, snapTargets: windows?.targets(for: capture.frame), drawing: drawing,
                                    standardResolution: settings.saveAtStandardResolution,
-                                   copyTextEnabled: settings.copyTextEnabled)
+                                   copyTextEnabled: copyTextEnabled)
             view.delegate = self
             panel.contentView = view
             panels.append(panel)
@@ -200,6 +203,7 @@ final class CaptureSession: OverlayViewDelegate {
         case .close:
             end(reason: "cancelled")
         case .copyText:
+            guard copyTextEnabled else { return }   // turned off: Vision never runs (OQ-22)
             // Not mid-drag (⌘O with the mouse down): the selection or a shape would keep changing
             // while the old image is read, and Esc would only end the drag.
             guard !views.contains(where: \.isInGesture) else { return NSSound.beep() }

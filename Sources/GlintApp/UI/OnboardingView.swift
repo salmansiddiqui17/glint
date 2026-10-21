@@ -8,7 +8,9 @@ struct OnboardingView: View {
     /// What the first run asks, applied when the user clicks Done.
     struct Choices {
         let launchAtLogin: Bool
-        let copyTextEnabled: Bool
+        /// The Copy Text checkbox, or nil if left as it started, so turning Copy Text on in
+        /// Preferences while this window is open isn't undone.
+        let copyTextEnabled: Bool?
     }
 
     let isFirstRun: Bool
@@ -44,7 +46,8 @@ struct OnboardingView: View {
             HStack {
                 Spacer()
                 Button("Done") {
-                    onDone(isFirstRun ? Choices(launchAtLogin: launchAtLogin, copyTextEnabled: copyTextEnabled) : nil)
+                    let copyText = copyTextEnabled == SettingsDefault.copyTextEnabled ? nil : copyTextEnabled
+                    onDone(isFirstRun ? Choices(launchAtLogin: launchAtLogin, copyTextEnabled: copyText) : nil)
                 }
                 .keyboardShortcut(.defaultAction)
                 .help("Closes this window.")

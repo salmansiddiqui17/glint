@@ -64,9 +64,6 @@ struct PreferencesView: View {
                 Text("Reads the text in a selection with on-device text recognition (⌘O).")
             }
             .help("When off, the toolbar has no Copy Text button and Glint never runs text recognition.")
-            .onChange(of: copyTextEnabled) { _, enabled in
-                if enabled { onTurnOnCopyText() }
-            }
             Toggle(isOn: $saveAtStandardResolution) {
                 Text("Save at standard resolution (1×)")
                 Text("Scales Retina captures down to their on-screen size in points.")
@@ -88,6 +85,9 @@ struct PreferencesView: View {
         .formStyle(.grouped)
         .frame(width: 420)
         .onAppear { loginStatus = LoginItem.status }
+        .onChange(of: copyTextEnabled) { _, enabled in
+            if enabled { onTurnOnCopyText() }
+        }
         // The user may change Login Items in System Settings while this window is open.
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
             loginStatus = LoginItem.status

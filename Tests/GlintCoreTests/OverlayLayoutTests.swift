@@ -187,7 +187,8 @@ struct OverlayLayoutTests {
         #expect(badgeFrame == CGRect(x: 461, y: 373, width: 90, height: 22))   // still above, left of the palette
     }
 
-    @Test(arguments: [CGSize(width: 130, height: 32), CGSize(width: 92, height: 32)])   // 92 × 32 is ActionToolbar.size
+    // 92 × 32 and 122 × 32 are ActionToolbar without and with Copy Text.
+    @Test(arguments: [CGSize(width: 130, height: 32), CGSize(width: 92, height: 32), CGSize(width: 122, height: 32)])
     func toolbarsAndBadgeNeverLeaveTheDisplayNorOverlap(toolbar bar: CGSize) {
         let displays = [display, CGRect(x: -1440, y: -300, width: 1440, height: 900),
                         CGRect(x: 0, y: 0, width: 1024, height: 600), CGRect(x: 2000, y: -200, width: 600, height: 1024),

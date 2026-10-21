@@ -48,9 +48,10 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
     /// at once. It runs at utility priority, not background: XPC passes the priority on to the
     /// Neural Engine compile, which background would confine to the efficiency cores and throttle.
     private func warmUpTextRecognitionIfNeeded(after delay: Duration = .zero) {
+        // One at a time: turning Copy Text off and on again doesn't start another.
+        guard warmUp == nil, settings.copyTextEnabled else { return }
         let build = Self.buildKey()
-        guard warmUp == nil,   // one at a time: turning Copy Text off and on again doesn't start another
-              TextRecognitionWarmUp.isNeeded(isEnabled: settings.copyTextEnabled,
+        guard TextRecognitionWarmUp.isNeeded(isEnabled: settings.copyTextEnabled,
                                              warmedUpBuild: settings.textRecognitionWarmedUpBuild,
                                              currentBuild: build) else { return }
         warmUp = Task {
@@ -100,8 +101,10 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
                     } catch {
                         logger.error("launch at login: \(error.localizedDescription, privacy: .public)")
                     }
-                    settings.copyTextEnabled = choices.copyTextEnabled
-                    warmUpTextRecognitionIfNeeded()   // at once, if Copy Text was turned on (OQ-22)
+                    if let copyTextEnabled = choices.copyTextEnabled {
+                        settings.copyTextEnabled = copyTextEnabled
+                        warmUpTextRecognitionIfNeeded()   // at once, if Copy Text was turned on (OQ-22)
+                    }
                 }
                 settings.hasCompletedOnboarding = true
                 windows.close("onboarding")
