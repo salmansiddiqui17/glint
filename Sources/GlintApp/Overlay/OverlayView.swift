@@ -47,7 +47,7 @@ final class OverlayView: NSView {
     private var scrollingText = false
     /// The window or display highlighted under the pointer while nothing is selected (FR-19).
     private var highlight: CGRect?
-    /// Hides the current message after 1.5 s (FR-46).
+    /// Hides the current message when its time is up (FR-46).
     private var messageTimer: Task<Void, Never>?
     /// The selection size VoiceOver last spoke, and the announcement waiting to be spoken (NFR-13).
     private var announcedSize: PixelSize?
@@ -157,14 +157,17 @@ final class OverlayView: NSView {
         toolbar.setRecognizingText(recognizing)
     }
 
-    /// Shows `text` over the selection for 1.5 s, and has VoiceOver read it.
-    func showMessage(_ text: String) {
+    /// Shows `text` over the selection for `duration`, or until another message replaces it when
+    /// `duration` is nil (OQ-18), and has VoiceOver read it.
+    func showMessage(_ text: String, for duration: Duration? = .seconds(1.5)) {
         messageTimer?.cancel()
+        messageTimer = nil
         chrome.showMessage(text, over: editor.selection)
         NSAccessibility.post(element: self, notification: .announcementRequested,
                              userInfo: [.announcement: text, .priority: NSAccessibilityPriorityLevel.high.rawValue])
+        guard let duration else { return }
         messageTimer = Task { [weak self] in
-            try? await Task.sleep(for: .seconds(1.5))
+            try? await Task.sleep(for: duration)
             guard !Task.isCancelled else { return }
             self?.chrome.showMessage(nil, over: nil)
         }

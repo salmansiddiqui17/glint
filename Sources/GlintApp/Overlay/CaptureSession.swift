@@ -19,8 +19,11 @@ final class CaptureSession: OverlayViewDelegate {
     private var previousApp: NSRunningApplication?
     /// Copy Text's recognition while it runs (FR-46).
     private var recognition: Task<Void, Never>?
-    /// How long Copy Text waits for Vision before giving up (OQ-10).
-    private static let recognitionTimeout: Duration = .seconds(10)
+    /// Says "Still reading text…" if the recognition is slow (OQ-18).
+    private var recognitionNotice: Task<Void, Never>?
+    /// Whether a recognition has finished in this process, so Vision's text model is ready and
+    /// later ones keep the shorter limit (OQ-18).
+    private static var recognitionHasFinished = false
     private let logger = Logger(subsystem: GlintCore.bundleIdentifier, category: "capture")
 
     init(captures: [DisplayCapture], windows: WindowSnapshot, exporter: Exporter, settings: AppSettings,
@@ -117,6 +120,8 @@ final class CaptureSession: OverlayViewDelegate {
         guard !panels.isEmpty else { return false }
         recognition?.cancel()
         recognition = nil
+        recognitionNotice?.cancel()
+        recognitionNotice = nil
         observers.forEach { $0.center.removeObserver($0.token) }
         observers.removeAll()
         colorPanel.close()
@@ -232,15 +237,26 @@ final class CaptureSession: OverlayViewDelegate {
 
     /// Recognises the text in `image` while the overlay waits (FR-46). Found text is copied and
     /// the overlay closes; otherwise `owner` shows why for 1.5 s and the overlay stays open.
+    /// The first recognition in a session may run longer, and says so while it does (OQ-18).
     private func recognizeText(in image: CGImage, shownOn owner: OverlayView) {
         let started = ContinuousClock.now
+        let timeout = TextRecognitionLimits.timeout(afterEarlierFinished: Self.recognitionHasFinished)
         owner.setRecognizingText(true)
         // `owner` is held weakly: if Esc ends the capture while Vision is still busy, its frozen
         // image is released at once (FR-27).
+        recognitionNotice = Task { [weak owner] in
+            try? await Task.sleep(for: TextRecognitionLimits.noticeDelay)
+            guard !Task.isCancelled else { return }
+            owner?.showMessage(String(localized: "Still reading text… Esc cancels"), for: nil)
+        }
         recognition = Task { [weak self, weak owner] in
-            let result = await Self.recognize(image)
+            let result = await Self.recognize(image, timeout: timeout)
+            // Vision answered, with or without text, so its model is ready (OQ-18).
+            if case .success = result { CaptureSession.recognitionHasFinished = true }
             guard let self, let owner, !Task.isCancelled else { return }   // Esc or ⌘X ended the capture
             recognition = nil
+            recognitionNotice?.cancel()
+            recognitionNotice = nil
             owner.setRecognizingText(false)
             switch result {
             case let .success(text) where !text.isEmpty:
@@ -258,13 +274,13 @@ final class CaptureSession: OverlayViewDelegate {
         }
     }
 
-    /// Vision's text in `image`, given up after `recognitionTimeout`. Cancelling the caller, or the
-    /// timeout, cancels the recognition too.
-    private nonisolated static func recognize(_ image: CGImage) async -> Result<String, any Error> {
+    /// Vision's text in `image`, given up after `timeout`. Cancelling the caller, or the timeout,
+    /// cancels the recognition too.
+    private nonisolated static func recognize(_ image: CGImage, timeout: Duration) async -> Result<String, any Error> {
         let work = Task.detached(priority: .userInitiated) { try await TextRecognition.recognizeText(in: image) }
         return await withTaskCancellationHandler {
             do {
-                return .success(try await withTimeout(recognitionTimeout) { try await work.value })
+                return .success(try await withTimeout(timeout) { try await work.value })
             } catch {
                 work.cancel()
                 return .failure(error)
