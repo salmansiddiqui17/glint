@@ -11,7 +11,7 @@ struct TextRecognitionWarmUpTests {
                                        operatingSystem: macOS)
     }
 
-    @Test func warmUpImageReadsAsItsText() async throws {
+    @Test(.requiresTextRecognition) func warmUpImageReadsAsItsText() async throws {
         let image = try #require(TextRecognition.warmUpImage())
         #expect(try await TextRecognition.recognizeText(in: image) == TextRecognition.warmUpText)
     }

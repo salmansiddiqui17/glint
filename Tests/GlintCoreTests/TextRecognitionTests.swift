@@ -8,14 +8,14 @@ struct TextRecognitionTests {
         TextRecognition.image(of: lines.joined(separator: "\n"), fontSize: fontSize, scale: scale)!
     }
 
-    @Test func recognisesLinesInReadingOrder() async throws {
+    @Test(.requiresTextRecognition) func recognisesLinesInReadingOrder() async throws {
         let text = try await TextRecognition.recognizeText(in: textImage(["Invoice number 4821", "Total due today"]))
         #expect(text == "Invoice number 4821\nTotal due today")
     }
 
     /// "Redacted areas are never read" (FR-46): large text stays legible through the lightest
     /// pixelate, so recognition must see the redaction as a solid block instead.
-    @Test func redactedTextIsNeverRead() async throws {
+    @Test(.requiresTextRecognition) func redactedTextIsNeverRead() async throws {
         let fontSize: CGFloat = 96
         let image = textImage(["Password hunter2"], fontSize: fontSize)   // at 2×
         let size = CGSize(width: CGFloat(image.width) / 2, height: CGFloat(image.height) / 2)
@@ -33,7 +33,7 @@ struct TextRecognitionTests {
     /// strength, 96 pt text at 2× was read word for word through both styles. The redaction is
     /// drawn tightly round the secret's line, the smallest box a user would draw.
     /// (font size, scale, standard resolution)
-    @Test(arguments: [RedactionStyle.pixelate, .blur],
+    @Test(.requiresTextRecognition, arguments: [RedactionStyle.pixelate, .blur],
           [(CGFloat(48), CGFloat(2), false), (96, 2, false), (160, 2, false), (300, 2, false), (96, 1, false),
            (96, 2, true)])
     func exportedRedactionsHideTextOfAnySize(style: RedactionStyle,
@@ -56,7 +56,7 @@ struct TextRecognitionTests {
         }
     }
 
-    @Test func blankImageHasNoText() async throws {
+    @Test(.requiresTextRecognition) func blankImageHasNoText() async throws {
         let blank = textImage([""])
         #expect(try await TextRecognition.recognizeText(in: blank) == "")
     }
