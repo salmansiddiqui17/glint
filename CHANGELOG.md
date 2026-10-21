@@ -7,14 +7,14 @@ All notable changes to Glint are documented here. The format follows
 ## [Unreleased]
 
 ### Added
-- **Window snapping.** With nothing selected, the window under the pointer is highlighted; click to select exactly that window, or the desktop for the whole display. Dragging still makes a free selection, and clicking outside a selection snaps again.
-- **Copy Text** (⌘O, or the new first button in the toolbar) recognises the text in the selection on your Mac and copies it as plain text. Redactions apply first. If there is no text, the overlay says so and stays open.
-- **About Glint** in the menu: version, copyright and acknowledgements.
-- VoiceOver: the overlay speaks the selection's size once it settles, and the Colour button reads out the current colour.
+- **Window snapping.** Before you make a selection, the window under the pointer is highlighted; click to select exactly that window, or click the desktop for the whole display. Dragging still makes a free selection, and clicking outside a selection selects the window under the pointer instead. Snapping is off while a drawing tool is selected. A window counts only if at least 40 × 40 pt of it is on that display. After a click selects the whole display, ⌘A, ⌘F or a double-click inside clears the selection, so you can pick a window again.
+- **Copy Text** (⌘O, or the new button in the toolbar under the selection) recognises the text in the selection, on your Mac, and copies it as plain text. Redacted areas are never read. If there is no text, the overlay says "No text found" and stays open; if the text can't be read, it says "Couldn't read text". Esc or ⌘X cancels while it reads. The first Copy Text after Glint launches can take longer while macOS prepares its text model, and after 10 seconds it says it is still reading.
+- **About Glint** in the menu-bar menu: version, copyright and acknowledgements.
+- **VoiceOver.** The overlay speaks the selection's size once it settles, and the Colour button reads out the current colour.
 
 ### Changed
-- Pixelate redactions keep one pixel per block, so a large redaction uses a fraction of the memory. Redactions hidden under a later one let go of their image until it is undone.
-- Every user-visible string is in a String Catalog, ready for translations.
+- Pixelate redactions use far less memory and look the same. A redaction completely covered by a later one frees its memory until the later one is undone.
+- Glint is ready to be translated: all its text is now in one String Catalog.
 
 ## [0.1.1] - 2026-10-19
 

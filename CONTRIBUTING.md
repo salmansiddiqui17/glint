@@ -31,8 +31,9 @@ the permission again after each rebuild.
 
 ## How the code is organised
 
-- **`GlintCore`** holds pure logic with no AppKit: selection geometry, toolbar layout, annotations,
-  text layout, rendering and redaction, keyboard-command matching and file naming. Everything here
+- **`GlintCore`** holds pure logic with no AppKit: selection geometry, window snapping, toolbar
+  layout, annotations, text layout, text recognition, rendering and redaction, keyboard-command
+  matching and file naming. Everything here
   is unit-tested with Swift Testing.
 - **`GlintApp`** is the AppKit and SwiftUI shell: menu bar, overlay windows, ScreenCaptureKit
   capture, the editor views, export and Preferences.
@@ -47,8 +48,10 @@ the comment around each one explains the behaviour it refers to.
 - Keep each pull request focused on one change, and describe what it changes and why.
 - Add or update tests for any logic change. `swift test` must pass, and CI runs it on every pull request.
 - The renderer's golden images live in `Tests/GlintCoreTests/Goldens/`. If a change to drawing is
-  intended, re-record them with `GLINT_RECORD_GOLDENS=1 swift test`, check the new images by eye and
-  commit them. Text goldens are per macOS major version, in `Goldens/text/<version>/`.
+  intended, re-record them with `GLINT_RECORD_GOLDENS=1 swift test`. The recording run fails on
+  purpose, so it can never pass silently. Check the new images by eye, run `swift test` again, and
+  commit them. Text goldens are per macOS major version, in `Goldens/text/<major>/` (e.g. `27`), and
+  are skipped on versions without a folder. Record them on the macOS version CI uses (27).
 - The project builds in Swift 6 language mode with strict concurrency checking; please keep it free of warnings.
 - Glint must never gain a network entitlement or send data anywhere. The build script refuses to
   produce an app with one.
@@ -56,8 +59,13 @@ the comment around each one explains the behaviour it refers to.
   Then run `scripts/sync-strings.sh` and commit `Resources/Localizable.xcstrings`, the String Catalog
   that translations will go into. CI fails when the catalog is out of date.
   Put values into text through an explicit format key, as in
-  `String(format: String(localized: "%lld by %lld"), width, height)`: an interpolated string gets a
-  catalog key the app never looks up, and the sync script rejects it.
+  `String(format: String(localized: "%lld by %lld"), width, height)`. Interpolating a variable
+  (`"\(width) by \(height)"`) gives a `%arg` catalog key that the app never looks up, and the sync
+  script rejects it.
+- CI checks the String Catalog first, then runs the tests on macOS 27. When a test fails, download
+  the `test-attachments-…` artifact from the run to see the expected, actual and diff images. CI
+  also launches the built app on macOS 15 and 26 (`scripts/smoke-launch.sh`), so guard any API
+  newer than macOS 15 with `if #available`.
 - Use [Conventional Commits](https://www.conventionalcommits.org/) for commit messages
   (`feat(core): …`, `fix(app): …`, `docs: …`).
 - For user-visible changes, add a line to the `Unreleased` section of [CHANGELOG.md](CHANGELOG.md).

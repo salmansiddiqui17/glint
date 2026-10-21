@@ -35,7 +35,8 @@ A native Swift menu-bar app for Apple silicon, inspired by Lightshot's quick cap
 - Click a window to select exactly that window, title bar included and shadow left out, or click the desktop for the whole display.
 - Resize handles, a live pixel-size badge, arrow-key nudging and ⌘A for the whole display.
 - Copy as PNG, or save as PNG or JPEG. The Save panel remembers the last folder. Optionally export at standard (1×) resolution.
-- **Copy Text** (⌘O) recognises the text in the selection, on your Mac, and copies it. Redacted areas stay unreadable.
+- **Copy Text** (⌘O) recognises the text in the selection, on your Mac, and copies it as plain text. Redacted areas are never read. If there is no text, or it can't be read, the overlay says so and stays open. Esc or ⌘X cancels while it reads.
+- The first **Copy Text** after Glint launches can take up to 45 seconds while macOS prepares its text model, and says so after 10 seconds. Later ones give up after 10 seconds.
 
 **Annotate**
 - Pencil, Line, Arrow, Ellipse, Rectangle, Marker, Text and Redact, in a palette beside the selection.
@@ -46,7 +47,8 @@ A native Swift menu-bar app for Apple silicon, inspired by Lightshot's quick cap
 
 **System**
 - Launch at login, a guided Screen Recording permission flow, and Preferences that apply instantly.
-- VoiceOver labels on every control. With VoiceOver on, the overlay speaks the selection's size.
+- **About Glint** in the menu-bar menu shows the version, copyright and acknowledgements.
+- VoiceOver labels on every control, and the **Colour** button reads out the current colour. With VoiceOver on, the overlay speaks the selection's size once it settles.
 - Shortcuts work on any keyboard layout, including Russian, Greek, Dvorak – QWERTY ⌘, German and Turkish.
 
 ## Requirements
@@ -82,13 +84,13 @@ gh attestation verify Glint-*.dmg --repo salmansiddiqui17/glint   # build proven
 
 ## Usage
 
-Press **⇧⌘9**, or choose **Take Screenshot** from the menu-bar icon, then drag to select an area.
+Press **⇧⌘9**, or choose **Take Screenshot** from the menu-bar icon, then drag to select an area, or click a window to select just that window.
 
 | Action | Shortcut |
 | --- | --- |
-| Select a window | **Click** it |
+| Select a window, or the whole display | **Click** the window, or the desktop |
 | Copy to the clipboard and close | **Return** or **⌘C** |
-| Copy the text in the selection | **⌘O** |
+| Copy the text in the selection and close | **⌘O** |
 | Save to a file | **⌘S** |
 | Close without saving | **Esc** or **⌘X** |
 | Select the whole display | **⌘A** (or **⌘F**) |
@@ -100,16 +102,24 @@ Press **⇧⌘9**, or choose **Take Screenshot** from the menu-bar icon, then dr
 
 **Esc** works in stages: it cancels the shape you're drawing, then leaves the tool, then closes the capture.
 
+Before you make a selection, the window under the pointer is highlighted. Only other apps' windows
+count, not the Dock, the menu bar or floating panels. Clicking outside a selection selects the window
+under the pointer instead. After a click selects the whole display, **⌘A**, **⌘F** or a double-click
+inside clears the selection, so you can pick a window again. Snapping is off while a drawing tool is
+selected.
+
 Click a tool in the palette to select it, and click it again to put it down. With no tool selected,
 dragging moves or resizes the selection.
 
 ## Privacy
 
 Glint runs in the macOS App Sandbox, and its only file access is to locations you pick in the Save
-panel. It has **no network entitlement**: the build script refuses to produce an app that has one, so
-screenshots never leave your Mac. **Copy Text** uses Apple's on-device Vision text recognition. Its
-logs hold only diagnostics such as image sizes, timings and errors, never what you capture, type or
-copy as text.
+panel. It has **no network entitlement** (the build script refuses to produce an app that has one),
+so Glint itself never sends your screenshots or their text anywhere. **Copy Text** uses Apple's
+on-device Vision text recognition. Glint's logs hold only diagnostics such as image sizes, timings
+and errors, never what you capture, type or copy as text. What you copy goes to the macOS clipboard,
+which Universal Clipboard may share with your other Apple devices, and macOS uploads files you save
+to a synced folder such as iCloud Drive.
 
 ## Building from source
 
@@ -145,7 +155,7 @@ scripts/package-release.sh 1.2.3          # dist/Glint-1.2.3.zip, .dmg and SHA25
 Sources/
   Glint/        Entry point
   GlintApp/     AppKit and SwiftUI shell: menu bar, overlay, capture, editor views, export, Preferences
-  GlintCore/    Pure logic: geometry, layout, annotations, text, rendering, redaction (unit-tested)
+  GlintCore/    Pure logic: geometry, window snapping, layout, annotations, text, text recognition, rendering, redaction (unit-tested)
 Tests/
   GlintCoreTests/   Unit tests, and Goldens/ with the renderer's golden images
 Resources/      Info.plist, entitlements, app icon, Localizable.xcstrings (the String Catalog)
@@ -156,8 +166,11 @@ scripts/        build-app.sh, package-release.sh, notarize.sh, make-icon.sh, syn
 
 Releases are fully automated with GitHub Actions:
 
-- **[CI](.github/workflows/ci.yml)** runs on every push to `main` and every pull request. It runs the
-  tests, builds an ad-hoc signed app, packages it, and uploads it as a workflow artifact.
+- **[CI](.github/workflows/ci.yml)** runs on every push to `main` and every pull request. It checks
+  the String Catalog is up to date, runs the tests on macOS 27, builds an ad-hoc signed app, packages
+  it, and uploads it as a workflow artifact. Then it launches that app on macOS 15 and 26 to check it
+  still starts. When a test fails, it uploads the expected, actual and diff images as a
+  `test-attachments-…` artifact.
 - **[Release](.github/workflows/release.yml)** runs when a version tag is pushed. It tests, builds
   with the tag's version, packages a `.dmg`, a `.zip` and `SHA256SUMS.txt`, attests build provenance,
   and publishes a GitHub release. The release notes come from that version's section of
