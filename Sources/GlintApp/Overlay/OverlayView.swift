@@ -162,8 +162,8 @@ final class OverlayView: NSView {
         chrome.showMessage(nil, over: nil)
     }
 
-    /// Shows `text` over the selection for `duration`, or until it is replaced or hidden when
-    /// `duration` is nil (OQ-18), and has VoiceOver read it.
+    /// Shows `text` over the selection and has VoiceOver read it. It hides after `duration`, or,
+    /// when that is nil, stays until it is replaced or hidden (OQ-18).
     func showMessage(_ text: String, for duration: Duration? = .seconds(1.5)) {
         messageTimer?.cancel()
         messageTimer = nil

@@ -94,6 +94,7 @@ final class AnnotationLayers {
         // A removed redaction may have covered one that stays, whose patch was dropped. Make it
         // again before the new layers: a new redaction's patch draws the patches below it, and
         // a missing one would be left out, as if that redaction weren't there.
+        // If this sync also adds a new coverer, the final pass drops it again: rare, and safe.
         if removed { updateCoveredPatches() }
         for index in kept..<annotations.count {
             let entry = makeLayer(for: annotations[index], below: Array(annotations[..<index]))

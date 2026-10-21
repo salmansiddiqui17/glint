@@ -21,8 +21,8 @@ final class CaptureSession: OverlayViewDelegate {
     private var recognition: Task<Void, Never>?
     /// Says "Still reading text…" if the recognition is slow (OQ-18).
     private var recognitionNotice: Task<Void, Never>?
-    /// Whether a recognition has finished in this process, so Vision's text model is ready and
-    /// later ones keep the shorter limit (OQ-18).
+    /// Whether a recognition has finished since Glint launched, so Vision's text model is ready
+    /// and later ones keep the shorter limit (OQ-18).
     private static var recognitionHasFinished = false
     private let logger = Logger(subsystem: GlintCore.bundleIdentifier, category: "capture")
 
@@ -242,22 +242,25 @@ final class CaptureSession: OverlayViewDelegate {
 
     /// Recognises the text in `image` while the overlay waits (FR-46). Found text is copied and
     /// the overlay closes; otherwise `owner` shows why for 1.5 s and the overlay stays open.
-    /// The first recognition in a session may run longer, and says so while it does (OQ-18).
+    /// The first recognition since Glint launched may run longer, and says so while it does (OQ-18).
     private func recognizeText(in image: CGImage, shownOn owner: OverlayView) {
         let started = ContinuousClock.now
-        let timeout = TextRecognitionLimits.timeout(afterEarlierFinished: Self.recognitionHasFinished)
+        let isFirst = !Self.recognitionHasFinished
+        let timeout = TextRecognitionLimits.timeout(isFirstSinceLaunch: isFirst)
         owner.setRecognizingText(true)
-        // `owner` is held weakly: if Esc ends the capture while Vision is still busy, its frozen
-        // image is released at once (FR-27).
-        recognitionNotice = Task { [weak owner] in
-            try? await Task.sleep(for: TextRecognitionLimits.noticeDelay)
-            guard !Task.isCancelled else { return }
-            owner?.showMessage(String(localized: "Still reading text… Esc cancels"), for: nil)
+        // Both tasks hold `owner` weakly: if Esc ends the capture while Vision is still busy, its
+        // frozen image is released at once (FR-27).
+        if let delay = TextRecognitionLimits.noticeDelay(isFirstSinceLaunch: isFirst) {
+            recognitionNotice = Task { [weak owner] in
+                try? await Task.sleep(for: delay)
+                guard !Task.isCancelled else { return }
+                owner?.showMessage(String(localized: "Still reading text… Esc cancels"), for: nil)
+            }
         }
         recognition = Task { [weak self, weak owner] in
             let result = await Self.recognize(image, timeout: timeout)
             // Vision answered, with or without text, so its model is ready (OQ-18).
-            if case .success = result { CaptureSession.recognitionHasFinished = true }
+            if case .success = result { Self.recognitionHasFinished = true }
             guard let self, let owner, !Task.isCancelled else { return }   // Esc or ⌘X ended the capture
             recognition = nil
             recognitionNotice?.cancel()

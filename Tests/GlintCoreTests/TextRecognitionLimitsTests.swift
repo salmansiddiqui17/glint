@@ -2,20 +2,19 @@ import Testing
 @testable import GlintCore
 
 struct TextRecognitionLimitsTests {
-    @Test func theFirstRecognitionMayTakeLonger() {
-        #expect(TextRecognitionLimits.timeout(afterEarlierFinished: false) == .seconds(45))
+    @Test func theFirstAttemptMayTakeLongerAndSaysSo() {
+        #expect(TextRecognitionLimits.timeout(isFirstSinceLaunch: true) == .seconds(45))
+        #expect(TextRecognitionLimits.noticeDelay(isFirstSinceLaunch: true) == .seconds(10))
     }
 
-    @Test func laterRecognitionsKeepTheUsualLimit() {
-        #expect(TextRecognitionLimits.timeout(afterEarlierFinished: true) == .seconds(10))
+    @Test func laterAttemptsKeepTheUsualLimitAndShowNoNotice() {
+        // The notice would race the 10 s timeout and flash just before "Couldn't read text".
+        #expect(TextRecognitionLimits.timeout(isFirstSinceLaunch: false) == .seconds(10))
+        #expect(TextRecognitionLimits.noticeDelay(isFirstSinceLaunch: false) == nil)
     }
 
-    @Test func theNoticeShowsAfterTenSeconds() {
-        #expect(TextRecognitionLimits.noticeDelay == .seconds(10))
-    }
-
-    @Test func onlyTheFirstRecognitionRunsLongEnoughForTheNotice() {
-        #expect(TextRecognitionLimits.noticeDelay < TextRecognitionLimits.timeout(afterEarlierFinished: false))
-        #expect(TextRecognitionLimits.noticeDelay >= TextRecognitionLimits.timeout(afterEarlierFinished: true))
+    @Test func theNoticeComesBeforeTheFirstAttemptTimesOut() throws {
+        let delay = try #require(TextRecognitionLimits.noticeDelay(isFirstSinceLaunch: true))
+        #expect(delay < TextRecognitionLimits.timeout(isFirstSinceLaunch: true))
     }
 }
